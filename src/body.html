@@ -1,0 +1,113 @@
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><div class="logo">WC</div><div><h1>Westchester Construction Lead Machine</h1><small>County Planning Board referrals · 35 municipalities</small></div></div>
+    <nav class="tabs" id="tabs">
+      <a href="#home" data-v="home">Home</a>
+      <a href="#call-list" data-v="call-list">Call list</a>
+      <a href="#jobs" data-v="jobs">All projects</a>
+      <a href="#towns" data-v="towns">By town</a>
+      <a href="#how" data-v="how">How it works</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="tradebar" id="tradebar"><span class="lbl">Selling as</span></div>
+  <div class="ticker" id="ticker"></div>
+
+  <div id="v-home" class="view">
+    <section>
+      <div class="eyebrow" id="h-eyebrow"></div>
+      <h2>Projects headed to Westchester planning boards, worth an estimated</h2>
+      <div class="big" id="h-big"></div>
+      <p class="lede" id="h-lede"></p>
+    </section>
+    <div class="grid2">
+      <div class="panel">
+        <div class="maphead">
+          <h3 style="margin:0">Every project, by size and town</h3>
+          <div class="legend"><span><i style="background:var(--accent)"></i>Call list</span><span><i style="background:var(--steel)"></i>Filtered out</span></div>
+        </div>
+        <canvas id="map" aria-label="Isometric map of Westchester planning referrals; bar height shows floor area"></canvas>
+        <div class="pad note" style="padding-top:0" id="map-hint">Bar height is floor area. Click a bar to open the project.</div>
+      </div>
+      <div class="panel funnel" id="funnel"></div>
+    </div>
+    <section><div class="tiles" id="tiles"></div></section>
+    <section style="padding-top:0">
+      <div class="panel">
+        <div class="maphead"><h3 style="margin:0">Newest filings</h3><a href="#call-list" class="sub">Full call list →</a></div>
+        <div class="tablewrap"><table id="top5"></table></div>
+      </div>
+    </section>
+  </div>
+
+  <div id="v-call-list" class="view hide">
+    <section>
+      <div class="eyebrow">Newest filings first</div>
+      <h2>Call list</h2>
+      <p class="lede">Private projects with a real building in them, sized for a local builder, newest first. Pick how far back to look. Anything filed in the last two weeks is marked NEW: these are months from a building permit, so nobody has bought out the trades yet.</p>
+    </section>
+    <div class="panel">
+      <div class="controls" id="assume1"></div>
+      <div class="tablewrap"><table id="calltable"></table></div>
+    </div>
+  </div>
+
+  <div id="v-jobs" class="view hide">
+    <section><div class="eyebrow">Every referral with construction scope, Nov 2025 to Nov 2026</div><h2>All projects</h2></section>
+    <div class="panel">
+      <div class="controls">
+        <div class="ctl"><label for="f-q">Search</label><input type="search" id="f-q" placeholder="Project, address, description"></div>
+        <div class="ctl"><label for="f-b">Town</label><select id="f-b"><option value="">All</option></select></div>
+        <div class="ctl"><label for="f-s">Use</label><select id="f-s"><option value="">All</option></select></div>
+        <div class="ctl"><label for="f-c">Show</label><select id="f-c"><option value="">Everything</option><option value="1">Call list only</option></select></div>
+        <div class="sub" id="f-count"></div>
+      </div>
+      <div class="tablewrap"><table id="alltable"></table></div>
+    </div>
+  </div>
+
+  <div id="v-towns" class="view hide">
+    <section>
+      <div class="eyebrow">Where the work is, and who to ask</div>
+      <h2>By town</h2>
+      <p class="lede">Each town's planning office holds the applicant's name, engineer and plans for every project below. One friendly call to the planner opens up the whole list.</p>
+    </section>
+    <div class="panel"><div class="tablewrap"><table id="towntable"></table></div></div>
+  </div>
+
+  <div id="v-how" class="view hide">
+    <section class="prose">
+      <div class="eyebrow">Method, assumptions, sources</div>
+      <h2>How it works</h2>
+      <h3>1 · Pull</h3>
+      <p>Westchester has no county-wide building permit feed: each of its 40-plus cities, towns and villages runs its own permit office. But state and county law make every municipality send bigger land-use cases to the County Planning Board. That includes any site plan with 5,000 sq ft or more of new or renovated floor area, or 10,000 sq ft or more of land disturbance. The county publishes each referral with its size, units, stories and a description.</p>
+      <p>This page pulls every referral with a county letter dated 11 Nov 2025 to 11 Nov 2026 that involves a site plan, subdivision, special permit or use variance and has real scope (floor area, units, or 10,000+ sq ft of disturbance). That's 166 projects. Zoning text changes, moratoriums and small variances are left out.</p>
+      <h3>2 · Cut</h3>
+      <ul>
+        <li><b>Private work.</b> Hospitals, schools, government buildings, utilities and parks come out. They go to public bid.</li>
+        <li><b>A real building.</b> At least 5,000 sq ft of floor area or 5 housing units.</li>
+        <li><b>Local-builder size.</b> Under 250,000 sq ft. The 28-story towers and the Westchester Crossing megaproject go to regional GCs.</li>
+        <li><b>Just filed.</b> Filed in the last 30 days by default (change it on the Call list tab), so the project is just starting its local review.</li>
+      </ul>
+      <h3>3 · Rank</h3>
+      <p><b>Date filed</b> is the date on the county's referral record for the project, which is logged shortly after the town sends it over. The town's own application date can be a few weeks earlier.</p>
+      <p>The call list is sorted newest first. Score = freshness (up to 35, falling to 0 at the edge of the window) + size (up to 35, log scale of floor area) + type of work (new construction 25, renovation or change of use 15, changes to an earlier approval 5) + 5 for housing units.</p>
+      <h3>4 · Estimate</h3>
+      <p>Referrals carry no construction cost, so value is floor area × hard cost per sq ft (default $450 for Westchester). Each trade's slice is a rule-of-thumb share of hard cost. Site work also has a floor of $12 per sq ft of disturbed land. Change the cost on the Call list tab and switch trades at the top: every number updates.</p>
+      <table class="mini" id="sharetable"></table>
+      <p class="note">These are rough numbers for qualifying leads, not estimates to bid from.</p>
+      <h3>5 · Getting the applicant</h3>
+      <p>The county record names the town's planning contact but not the developer. The site plan application, the applicant, their engineer and architect are public records at the town. Call or email the planner, ask who the applicant and engineer are, and ask for the next planning board date. Most towns also post the applicant's name on the planning board agenda.</p>
+      <h3>6 · Links and contacts</h3>
+      <p>Where the county attached the submitted plans or its review letter to the referral, the project page links straight to that PDF. Every project also links to the town's planning page where one is verified, and to a search for the project's agenda and applicant. Phone numbers come from the county's directory of local building departments. Emails are shown only where the town publishes one; most Westchester towns take email through a web form instead.</p>
+      <p>Source: <a href="https://planning.westchestercountyny.gov/land-use-development/zoning-referrals">Westchester County Department of Planning · Planning and Zoning Referrals</a> (Westchester_County_Referrals feature service), pulled 11 Nov 2026.</p>
+    </section>
+  </div>
+
+  <div id="v-job" class="view hide"></div>
+</main>
+
+<footer><div class="wrap">Built from public Westchester County Planning Board referral records. Dollar values are estimates from floor area; see How it works.</div></footer>
