@@ -195,9 +195,9 @@ function ticker(){
 function home(){
   const tot=jobs.reduce((a,j)=>a+j.value,0), T=TRADES[A.trade];
   $('#h-eyebrow').textContent=`Westchester County · Planning Board referrals · Nov 2025 to Nov 2026 · pulled ${PULLED}`;
-  $('#h-big').textContent=fmt$(tot);
   const c=jobs.filter(j=>j.c4);
-  $('#h-lede').innerHTML=`Claude read all <b>${jobs.length}</b> projects Westchester towns sent to the County Planning Board in the last year. <b>${c.length}</b> are private, local-builder size, and were filed in the last ${A.days} days. That's about <b>${fmt$(c.reduce((a,j)=>a+j.tv,0))}</b> of ${T.n.toLowerCase()} work nobody has bid yet.`;
+  $('#h-big').textContent=fmt$(c.reduce((a,j)=>a+j.value,0));
+  $('#h-lede').innerHTML=`Claude read all <b>${jobs.length}</b> projects Westchester towns sent to the County Planning Board in the last year. <b>${c.length}</b> are private, local-builder size, and were filed in the last ${A.days} days. That's about <b>${fmt$(c.reduce((a,j)=>a+j.tv,0))}</b> of ${T.n.toLowerCase()} work nobody has bid yet. Everything referred in the year, including public work and megaprojects, totals ${fmt$(tot)}.`;
   const s0=jobs,s1=jobs.filter(j=>j.c1),s2=jobs.filter(j=>j.c2),s3=jobs.filter(j=>j.c3),s4=c;
   const steps=[['Referred','Projects with construction scope',s0],['Cut 1','Private, not public or institutional',s1],['Cut 2','A real building: 5,000+ sq ft or 5+ units',s2],['Cut 3','Local-builder size, under 250,000 sq ft',s3],['Call list',`Filed in the last ${A.days} days`,s4]];
   $('#funnel').innerHTML=`<div class="pad" style="padding-bottom:4px"><div class="eyebrow">The bid schedule</div><h3 style="margin:4px 0 8px">From every referral to the first call</h3></div>`+
