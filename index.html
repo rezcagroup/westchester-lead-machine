@@ -211,7 +211,7 @@ table.mini td{padding:6px 8px}
       <h3>2 · Cut</h3>
       <ul>
         <li><b>Private work.</b> Hospitals, schools, government buildings, utilities and parks come out. They go to public bid.</li>
-        <li><b>A real building.</b> At least 5,000 sq ft of floor area or 5 housing units.</li>
+        <li><b>A real building.</b> At least 5,000 sq ft of floor area or 5 housing units. Some referrals give units but no floor area; those are sized at 1,100 sq ft per unit and marked with a ~.</li>
         <li><b>Local-builder size.</b> Under 250,000 sq ft. The 28-story towers and the Westchester Crossing megaproject go to regional GCs.</li>
         <li><b>Just filed.</b> Filed in the last 30 days by default (change it on the Call list tab), so the project is just starting its local review.</li>
       </ul>
@@ -274,26 +274,38 @@ const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','De
 const fdate = iso => { const [y,m,d]=iso.split('-').map(Number); return d+' '+MON[m-1]+' '+y; };
 const daysAgo = iso => { const [y,m,d]=iso.split('-').map(Number); return Math.round((TODAY-Date.UTC(y,m-1,d))/864e5); };
 
-const jobs = RAW.map(r=>{
+// The county feed drops some spaces ("ValerieMonastra", "orUse"). Split a lower-case letter followed by a capital,
+// leaving real names (McX, RiverWalk), units (kWh) and codes or links alone.
+const KEEPWORD=/^(Mc|Mac|De|Di|La|Le|Du|O['’])[A-Z]|kWh|RiverWalk|[\d_\/@]/;
+const fixSp = t => String(t||'').split(' ').map(w=>KEEPWORD.test(w)?w:w.replace(/([a-z])([A-Z])/g,'$1 $2')).join(' ');
+const USES=['Agricultural','Commercial or Office','Industrial','Institutional, Governmental or other Public Facility','Mixed Use','Recreation or Conservation','Residential','Utilities, Public Infrastructure or Services'];
+const fixUse = u => USES.find(x=>x.replace(/\s/g,'')===String(u||'').replace(/\s/g,''))||u;
+Object.values(EV).forEach(e=>{e.z=fixSp(e.z);(e.cm||[]).forEach(c=>{c[1]=fixSp(c[1]);c[2]=fixSp(c[2])})});
+const SQFT_PER_UNIT = 1100; // gross sq ft per housing unit, used only when the referral gives units but no floor area
+const tname = k => { const n=TRADES[k].n; return /^(GC|HVAC)/.test(n)?n:n.toLowerCase(); };
+
+const jobs = RAW.map(raw=>{
+  const r=raw.slice(); [1,15,19,20,21].forEach(i=>r[i]=fixSp(r[i])); r[11]=fixUse(r[11]);
   const [id,name,agency,town,action,sqfa,sqd,addr,lat,lng,date,use,units,affh,comm,desc,stories,parking,acres,rec,recTitle,recAgency]=r;
   const txt=(name+' '+desc);
   let kind;
   if(/re-?approval|amend|extension|modif|revis/i.test(txt)) kind={k:'amend',t:'Changes an earlier approval',w:5};
   else if(/renovat|conver|change of use|interior|fit-?out|reuse|re-use|existing building/i.test(txt) && !/construct|erect|new (building|\d)|proposed (\d|a new|new)|develop/i.test(txt)) kind={k:'reno',t:'Renovation or change of use',w:15};
   else kind={k:'new',t:'New construction',w:25};
-  return {id,name:name.trim(),agency,town,action,sqfa,sqd,addr,lat,lng,date,use:use||'Not classified',units,affh,comm,desc,stories,parking,acres,rec,recTitle,recAgency,kind,age:daysAgo(date),zone:(EV[id]||{}).z||'',cm:(EV[id]||{}).cm||[]};
+  const estSq=!sqfa&&units>=5; // floor area missing: estimate it from the unit count
+  return {id,name:name.trim(),agency,town,action,sqfa,area:estSq?units*SQFT_PER_UNIT:sqfa,estSq,sqd,addr,lat,lng,date,use:use||'Not classified',units,affh,comm,desc,stories,parking,acres,rec,recTitle,recAgency,kind,age:daysAgo(date),zone:(EV[id]||{}).z||'',cm:(EV[id]||{}).cm||[]};
 });
 
 function compute(){
   const T=TRADES[A.trade];
   jobs.forEach(j=>{
-    j.value = j.sqfa*A.psf;
+    j.value = j.area*A.psf;
     j.tv = A.trade==='site' ? Math.max(j.value*T.s, j.sqd*12) : j.value*T.s;
     j.c1 = !PUBLIC.test(j.use);
-    j.c2 = j.c1 && (j.sqfa>=5000 || j.units>=5);
-    j.c3 = j.c2 && j.sqfa<=250000;
+    j.c2 = j.c1 && (j.area>=5000 || j.units>=5);
+    j.c3 = j.c2 && j.area<=250000;
     j.c4 = j.c3 && j.age<=A.days;
-    j.score = j.c4 ? Math.round(Math.max(0,35-j.age/A.days*35) + Math.min(35,Math.max(0,(Math.log10(Math.max(j.sqfa,1000))-3.5)*18)) + j.kind.w + (j.units>0?5:0)) : 0;
+    j.score = j.c4 ? Math.round(Math.max(0,35-j.age/A.days*35) + Math.min(35,Math.max(0,(Math.log10(Math.max(j.area,1000))-3.5)*18)) + j.kind.w + (j.units>0?5:0)) : 0;
   });
 }
 function ago(j){return j.age===0?'today':j.age===1?'yesterday':j.age+' days ago'}
@@ -404,7 +416,7 @@ Hi ${first},
 
 I saw ${j.name} (${j.addr.split(',')[0]}) on the County Planning Board referrals, county file ${j.id}. Could you share the applicant's name and contact, and the project engineer or architect? I'd also like to know when it's next on the ${j.agency||'board'} agenda.
 
-We're a [${TRADES[A.trade].n.toLowerCase()}] contractor based in Westchester and would like to get in front of the applicant early.
+We're a [${tname(A.trade)}] contractor based in Westchester and would like to get in front of the applicant early.
 
 Thanks,
 [Your name]
@@ -413,15 +425,15 @@ Thanks,
 function emailApplicant(j){
   const T=TRADES[A.trade];
   const scope=[j.sqfa?`${fmtN(j.sqfa)} sq ft`:'', j.units?`${j.units} units`:'', j.stories?`${j.stories} stories`:''].filter(Boolean).join(', ');
-  return `Subject: ${j.name}, ${j.town}: ${T.n.toLowerCase()}
+  return `Subject: ${j.name}, ${j.town}: ${tname(A.trade)}
 
 Hi [applicant first name],
 
 I saw ${j.name} at ${j.addr.split(',')[0]} come through ${j.town}'s ${j.agency||'planning board'} review${scope?` (${scope})`:''}. Congratulations on getting it moving.
 
-From the filing, the ${T.n.toLowerCase()} side looks like: ${tradeNeeds(j)[A.trade].slice(0,2).map(x=>x.replace(/\.$/,'')).join('; ').replace(/^./,c=>c.toLowerCase())}.
+From the filing, the ${tname(A.trade)} side looks like: ${tradeNeeds(j)[A.trade].slice(0,2).map(x=>x.replace(/\.$/,'')).join('; ').replace(/^./,c=>c.toLowerCase())}.
 
-We do ${T.need} on projects like this across Westchester, including [two local jobs]. By our rough math the ${T.n.toLowerCase()} package here is in the ${fmt$(j.tv*0.8)} to ${fmt$(j.tv*1.2)} range. We'd be glad to give you early pricing to help with your budget while the plans are still in review.
+We do ${T.need} on projects like this across Westchester, including [two local jobs]. By our rough math the ${tname(A.trade)} package here is in the ${fmt$(j.tv*0.8)} to ${fmt$(j.tv*1.2)} range. We'd be glad to give you early pricing to help with your budget while the plans are still in review.
 
 Can we get on the bid list? I'll call [Thursday] in case that's easier.
 
@@ -442,11 +454,11 @@ function home(){
   $('#h-eyebrow').textContent=`Westchester County · Planning Board referrals · Nov 2025 to Nov 2026 · pulled ${PULLED}`;
   const c=jobs.filter(j=>j.c4);
   $('#h-big').textContent=fmt$(c.reduce((a,j)=>a+j.value,0));
-  $('#h-lede').innerHTML=`Claude read all <b>${jobs.length}</b> projects Westchester towns sent to the County Planning Board in the last year. <b>${c.length}</b> are private, local-builder size, and were filed in the last ${A.days} days. That's about <b>${fmt$(c.reduce((a,j)=>a+j.tv,0))}</b> of ${T.n.toLowerCase()} work nobody has bid yet. Everything referred in the year, including public work and megaprojects, totals ${fmt$(tot)}.`;
+  $('#h-lede').innerHTML=`Claude read all <b>${jobs.length}</b> projects Westchester towns sent to the County Planning Board in the last year. <b>${c.length}</b> are private, local-builder size, and were filed in the last ${A.days} days. That's about <b>${fmt$(c.reduce((a,j)=>a+j.tv,0))}</b> of ${tname(A.trade)} work nobody has bid yet. Everything referred in the year, including public work and megaprojects, totals ${fmt$(tot)}.`;
   const s0=jobs,s1=jobs.filter(j=>j.c1),s2=jobs.filter(j=>j.c2),s3=jobs.filter(j=>j.c3),s4=c;
   const steps=[['Referred','Projects with construction scope',s0],['Cut 1','Private, not public or institutional',s1],['Cut 2','A real building: 5,000+ sq ft or 5+ units',s2],['Cut 3','Local-builder size, under 250,000 sq ft',s3],['Call list',`Filed in the last ${A.days} days`,s4]];
   $('#funnel').innerHTML=`<div class="pad" style="padding-bottom:4px"><div class="eyebrow">The bid schedule</div><h3 style="margin:4px 0 8px">From every referral to the first call</h3></div>`+
-    steps.map((s,i)=>`<div class="step ${i>=4?'hot':''}"><div class="k">${s[0]}</div><div class="n">${s[2].length}</div><div class="t">${s[1]}</div><div class="m">${fmt$(s[2].reduce((x,j)=>x+j.value,0))} est. value · ${fmt$(s[2].reduce((x,j)=>x+j.tv,0))} ${esc(T.n.toLowerCase())}<div class="bar"><span style="width:${(s[2].length/s0.length*100).toFixed(1)}%"></span></div></div></div>`).join('');
+    steps.map((s,i)=>`<div class="step ${i>=4?'hot':''}"><div class="k">${s[0]}</div><div class="n">${s[2].length}</div><div class="t">${s[1]}</div><div class="m">${fmt$(s[2].reduce((x,j)=>x+j.value,0))} est. value · ${fmt$(s[2].reduce((x,j)=>x+j.tv,0))} ${esc(tname(A.trade))}<div class="bar"><span style="width:${(s[2].length/s0.length*100).toFixed(1)}%"></span></div></div></div>`).join('');
   const units=c.reduce((a,j)=>a+j.units,0);
   const newc=c.filter(j=>j.kind.k==='new');
   const towns={};c.forEach(j=>towns[j.town]=(towns[j.town]||0)+1);
@@ -462,9 +474,9 @@ function home(){
   $('#top5').innerHTML=head(true)+top.map((j,i)=>row(j,i+1)).join('');
   bind('#top5'); drawMap();
 }
-function head(rank){return `<thead><tr>${rank?'<th>#</th>':''}<th>Filed</th><th>Project</th><th>Type of work</th><th class="num">Sq ft</th><th class="num">Units</th><th class="num">Est. ${esc(TRADES[A.trade].n.toLowerCase())}</th><th class="num">Score</th></tr></thead>`}
+function head(rank){return `<thead><tr>${rank?'<th>#</th>':''}<th>Filed</th><th>Project</th><th>Type of work</th><th class="num">Sq ft</th><th class="num">Units</th><th class="num">Est. ${esc(tname(A.trade))}</th><th class="num">Score</th></tr></thead>`}
 function row(j,rank){
-  return `<tr class="row" data-id="${j.id}">${rank!==undefined?`<td class="rank">${rank}</td>`:''}<td class="num" style="text-align:left;white-space:nowrap">${fdate(j.date)}<div class="sub">${ago(j)}</div></td><td><div class="addr">${esc(j.name)}${newPill(j)}${TEAM[j.id]&&TEAM[j.id].people.length?'<span class="pill p-rev" style="margin-left:6px">TEAM FOUND</span>':''}</div><div class="sub">${esc(j.town)} · ${esc(j.use)}</div><div class="sub" style="max-width:52ch;margin-top:2px">${esc(j.desc.length>150?j.desc.slice(0,150).replace(/\s+\S*$/,'')+'…':j.desc)}</div></td><td>${kindPill(j)}</td><td class="num">${j.sqfa?fmtN(j.sqfa):'·'}</td><td class="num">${j.units||'·'}</td><td class="num">${fmt$(j.tv)}</td><td class="num">${j.score||'·'}</td></tr>`;
+  return `<tr class="row" data-id="${j.id}">${rank!==undefined?`<td class="rank">${rank}</td>`:''}<td class="num" style="text-align:left;white-space:nowrap">${fdate(j.date)}<div class="sub">${ago(j)}</div></td><td><div class="addr">${esc(j.name)}${newPill(j)}${TEAM[j.id]&&TEAM[j.id].people.length?'<span class="pill p-rev" style="margin-left:6px">TEAM FOUND</span>':''}</div><div class="sub">${esc(j.town)} · ${esc(j.use)}</div><div class="sub" style="max-width:52ch;margin-top:2px">${esc(j.desc.length>150?j.desc.slice(0,150).replace(/\s+\S*$/,'')+'…':j.desc)}</div></td><td>${kindPill(j)}</td><td class="num">${j.area?(j.estSq?'~':'')+fmtN(j.area):'·'}</td><td class="num">${j.units||'·'}</td><td class="num">${fmt$(j.tv)}</td><td class="num">${j.score||'·'}</td></tr>`;
 }
 function bind(sel){document.querySelectorAll(sel+' tr.row').forEach(tr=>tr.onclick=()=>{location.hash='job-'+tr.dataset.id})}
 function assumeControls(){
@@ -480,17 +492,18 @@ let sortK='score',sortDir=-1;
 function allJobs(){
   const q=$('#f-q').value.toLowerCase(),b=$('#f-b').value,s=$('#f-s').value,c=$('#f-c').value;
   let list=jobs.filter(j=>(!b||j.town===b)&&(!s||j.use===s)&&(!c||j.c4)&&(!q||(j.name+' '+j.addr+' '+j.desc).toLowerCase().includes(q)));
-  list.sort((x,y)=>{const a=x[sortK],bb=y[sortK];return (a>bb?1:a<bb?-1:0)*sortDir});
+  const val=sortK==='kind'?j=>j.kind.t:j=>j[sortK];
+  list.sort((x,y)=>{const a=val(x),bb=val(y);return (a>bb?1:a<bb?-1:0)*sortDir});
   $('#f-count').textContent=list.length+' projects';
-  const cols=[['age','Filed'],['name','Project'],['kind','Type of work'],['sqfa','Sq ft','num'],['units','Units','num'],['tv','Est. '+TRADES[A.trade].n.toLowerCase(),'num'],['score','Score','num']];
+  const cols=[['age','Filed'],['name','Project'],['kind','Type of work'],['area','Sq ft','num'],['units','Units','num'],['tv','Est. '+tname(A.trade),'num'],['score','Score','num']];
   $('#alltable').innerHTML='<thead><tr>'+cols.map(k=>`<th class="${k[2]||''}" data-k="${k[0]}">${esc(k[1])}${sortK===k[0]?(sortDir>0?' ↑':' ↓'):''}</th>`).join('')+'</tr></thead><tbody>'+list.map(j=>row(j)).join('')+'</tbody>';
-  document.querySelectorAll('#alltable th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(sortK===k)sortDir*=-1;else{sortK=k;sortDir=(k==='name'||k==='age')?1:-1}allJobs()});
+  document.querySelectorAll('#alltable th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(sortK===k)sortDir*=-1;else{sortK=k;sortDir=(k==='name'||k==='age'||k==='kind')?1:-1}allJobs()});
   bind('#alltable');
 }
 function towns(){
   const g={};jobs.forEach(j=>(g[j.town] ||= []).push(j));
   const rows=Object.entries(g).sort((a,b)=>b[1].filter(j=>j.c4).reduce((x,j)=>x+j.tv,0)-a[1].filter(j=>j.c4).reduce((x,j)=>x+j.tv,0));
-  $('#towntable').innerHTML='<thead><tr><th>Town</th><th>Planning contact</th><th class="num">Projects</th><th class="num">On call list</th><th class="num">Est. '+esc(TRADES[A.trade].n.toLowerCase())+'</th><th>Call-list projects</th></tr></thead><tbody>'+rows.map(([t,a])=>{
+  $('#towntable').innerHTML='<thead><tr><th>Town</th><th>Planning contact</th><th class="num">Projects</th><th class="num">On call list</th><th class="num">Est. '+esc(tname(A.trade))+'</th><th>Call-list projects</th></tr></thead><tbody>'+rows.map(([t,a])=>{
     const on=a.filter(j=>j.c4); const p=a.find(j=>j.rec)||a[0];
     const C=CONTACTS[t]||{};
     return `<tr><td class="addr">${esc(t)}</td><td>${esc(p.rec||'Planning office')}<div class="sub">${esc(p.recTitle)}${p.recAgency?' · '+esc(p.recAgency):''}</div><div class="sub">${C.email?esc(C.email)+' · ':''}${C.plan?'Planning '+esc(C.plan)+' · ':''}${C.bld?'Building '+esc(C.bld):''}</div>${C.page?`<a class="sub" href="${C.page}" target="_blank" rel="noopener">${esc(C.pageLabel)} ↗</a>`:''}</td><td class="num">${a.length}</td><td class="num">${on.length}</td><td class="num">${fmt$(on.reduce((x,j)=>x+j.tv,0))}</td><td>${on.map(j=>`<a class="chip" href="#job-${j.id}">${esc(j.name)}</a>`).join('')||'<span class="sub">None right now</span>'}</td></tr>`}).join('')+'</tbody>';
@@ -502,12 +515,12 @@ function jobView(id){
   const j=jobs.find(x=>x.id===id);
   if(!j){$('#v-job').innerHTML='<section><h2>Project not found</h2><p><a href="#jobs">Back to all projects</a></p></section>';return}
   const T=TRADES[A.trade];
-  const why=!j.c1?'Public or institutional: goes to public bid.':!j.c2?'Under 5,000 sq ft and under 5 units.':!j.c3?'Over 250,000 sq ft: a regional GC job.':!j.c4?`Filed ${j.age} days ago, outside the last ${A.days} days.`:'';
+  const why=!j.c1?'Public or institutional: goes to public bid.':!j.c2?'Under 5,000 sq ft and under 5 units.':!j.c3?(j.estSq?`About ${fmtN(j.area)} sq ft estimated from ${j.units} units, over 250,000: a regional GC job.`:'Over 250,000 sq ft: a regional GC job.'):!j.c4?`Filed ${j.age} days ago, outside the last ${A.days} days.`:'';
   const same=jobs.filter(x=>x.town===j.town&&x!==j&&x.c4);
   $('#v-job').innerHTML=`<section>
     <div class="eyebrow"><a href="#call-list">Call list</a> / ${esc(j.town)} / ${esc(j.id)}</div>
     <div class="job-hero"><div><h2>${esc(j.name)}</h2><div class="sub" style="margin:-4px 0 8px">${esc(j.addr)} · <b style="color:var(--ink)">Filed ${fdate(j.date)}</b> (${ago(j)})${newPill(j)}</div><div>${kindPill(j)} ${j.c4?`<span class="chip">Call list · score ${j.score}</span>`:`<span class="chip">Not on the call list. ${esc(why)}</span>`}</div></div>
-    <div style="text-align:right"><div class="eyebrow">Est. ${esc(T.n.toLowerCase())}</div><div class="big" style="font-size:64px">${fmt$(j.tv)}</div><div class="sub">${j.sqfa?`of ${fmt$(j.value)} hard cost at $${A.psf}/sq ft`:`from ${fmtN(j.sqd)} sq ft of disturbance`}</div></div></div>
+    <div style="text-align:right"><div class="eyebrow">Est. ${esc(tname(A.trade))}</div><div class="big" style="font-size:64px">${fmt$(j.tv)}</div><div class="sub">${j.estSq?`of ${fmt$(j.value)} hard cost: ${j.units} units × ${fmtN(SQFT_PER_UNIT)} sq ft (no floor area in the referral) at $${A.psf}/sq ft`:j.sqfa?`of ${fmt$(j.value)} hard cost at $${A.psf}/sq ft`:`from ${fmtN(j.sqd)} sq ft of disturbance`}</div></div></div>
   </section>
   <div class="panel pad" style="margin-bottom:20px">
     <h3>Where it stands</h3>
@@ -524,7 +537,7 @@ function jobView(id){
         <dt>Approvals sought</dt><dd>${esc(j.action)}</dd>
         <dt>Use</dt><dd>${esc(j.use)}</dd>
         <dt>Description (as filed)</dt><dd>${esc(j.desc)}</dd>${j.zone?`<dt>Zoning district</dt><dd>${esc(j.zone)}</dd>`:''}
-        <dt>Floor area</dt><dd>${j.sqfa?fmtN(j.sqfa)+' sq ft':'Not stated'}</dd>
+        <dt>Floor area</dt><dd>${j.sqfa?fmtN(j.sqfa)+' sq ft':j.estSq?`Not stated <span class="sub">(estimated ~${fmtN(j.area)} sq ft from ${j.units} units)</span>`:'Not stated'}</dd>
         <dt>Land disturbance</dt><dd>${j.sqd?fmtN(j.sqd)+' sq ft':'Not stated'}</dd>
         <dt>Stories</dt><dd>${j.stories||'Not stated'}</dd>
         <dt>Housing units</dt><dd>${j.units?j.units+(j.affh?` (${j.affh} affordable)`:''):'None'}</dd>
@@ -610,7 +623,7 @@ function drawMap(){
   const cap=300000, maxSq=cap;
   hits=[];const bw=6;
   items.forEach(({j,p})=>{
-    const h=5+Math.sqrt(Math.min(j.sqfa||j.sqd/4,cap)/maxSq)*(top+60);
+    const h=5+Math.sqrt(Math.min(j.area||j.sqd/4,cap)/maxSq)*(top+60);
     const hot=j.c4;
     g.fillStyle=hot?'#ffb020':'#4b5f75';g.fillRect(p[0]-bw,p[1]-h,bw,h);
     g.fillStyle=hot?'#c7850e':'#38485a';g.fillRect(p[0],p[1]-h,bw,h);
@@ -639,7 +652,7 @@ function init(){
   ['#f-q','#f-b','#f-s','#f-c'].forEach(s=>$(s).addEventListener('input',allJobs));
   tradebar();assumeControls();
   const cv=$('#map');
-  cv.addEventListener('mousemove',e=>{const h=hitAt(e);cv.style.cursor=h?'pointer':'crosshair';$('#map-hint').textContent=h?`${h.j.name}, ${h.j.town} · ${h.j.sqfa?fmtN(h.j.sqfa)+' sq ft':'site work'} · ${h.j.kind.t}`:'Bar height is floor area. Click a bar to open the project.'});
+  cv.addEventListener('mousemove',e=>{const h=hitAt(e);cv.style.cursor=h?'pointer':'crosshair';$('#map-hint').textContent=h?`${h.j.name}, ${h.j.town} · ${h.j.area?(h.j.estSq?'~':'')+fmtN(h.j.area)+' sq ft':'site work'} · ${h.j.kind.t}`:'Bar height is floor area. Click a bar to open the project.'});
   cv.addEventListener('click',e=>{const h=hitAt(e);if(h)location.hash='job-'+h.j.id});
   window.addEventListener('resize',()=>{if(!$('#v-home').classList.contains('hide'))drawMap()});
   window.addEventListener('hashchange',route);

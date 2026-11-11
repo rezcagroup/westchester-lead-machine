@@ -54,6 +54,8 @@ python3 build.py
 
 Referrals carry no construction cost. Value = floor area x hard cost per sq ft (default $450, adjustable on the Call list tab). Each trade is a rule-of-thumb share of hard cost; site work has a floor of $12 per sq ft of disturbed land. Scope lines not stated in the filing are tagged "typical, not stated". These are for qualifying leads, not for bidding.
 
+Where a referral gives housing units but no floor area, floor area is estimated at 1,100 sq ft per unit (shown with a ~) so the project is valued and size-cut like the rest. `src/script.js` also repairs words the county feed runs together ("ValerieMonastra", "orUse") when the data loads; words joined in all lower case ("isproposing") are left as they are.
+
 ## NYC
 
 `nyc.html` is built from two NYC Open Data datasets (Socrata API, no key needed):
