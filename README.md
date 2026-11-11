@@ -60,6 +60,7 @@ Referrals carry no construction cost. Value = floor area x hard cost per sq ft (
 
 - `w9ak-ipjd` DOB NOW: Build – Job Application Filings: the lead. Owner, architect or engineer, filing representative, size, units, filed cost, description, live status.
 - `rbx6-tga4` DOB NOW: Build – Approved Permits: names the general contractor once one holds a permit.
+- `t8hj-ruu2` DOB License Info: the business phone and email that general contractors and filing representatives registered with DOB. Owners, architects and engineers have no published contact.
 
 Refresh (needs network access to `data.cityofnewyork.us`):
 
@@ -77,6 +78,12 @@ How the NYC page differs from Westchester:
 - **Value.** Alterations use the cost filed with DOB (often understated). New buildings have no filed cost, so they use floor area x cost per sq ft (default $500).
 - **Units.** A plain alteration reports the whole building's units, so only units a job adds are counted.
 - **Cuts.** Private owner and not withdrawn; 5,000+ sq ft, 5+ new units or $500K+ filed cost; under 250,000 sq ft and $50M; filed in the chosen window and not signed off. Borough and stage filters sit on top.
+- **Cost tiers.** The base cost per sq ft is scaled 75% for 1 to 3 family houses and 115% for 7+ stories.
+- **Since last visit.** The browser remembers the last visit date and marks jobs filed since.
 - **Repeat players tab.** Owners, design firms and GCs with more than one job on the call list.
 
 Source files: `src/nyc_body.html`, `src/nyc_script.js` (placeholder `__NYC__`); head and styles are shared with Westchester.
+
+### Daily refresh and hosting
+
+`.github/workflows/refresh.yml` pulls the NYC data every morning, rebuilds both pages and publishes them with GitHub Pages. It runs once the file is on `main` and Settings -> Pages -> Source is set to "GitHub Actions". A Pages site is public. Nothing is committed back to the repo, so `data/nyc.json` and `nyc.html` in git are only as fresh as the last manual pull.

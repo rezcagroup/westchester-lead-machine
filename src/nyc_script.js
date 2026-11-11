@@ -18,6 +18,8 @@ const BOROS = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island'];
 const WINDOWS = [7,14,30,60,90,180];
 const A = {psf:500, trade:'concrete', days:30, boro:'', stage:'open'};
 try{const s=JSON.parse(localStorage.getItem('nyc-assume')||'null'); if(s){A.psf=s.psf||A.psf; if(TRADES[s.trade])A.trade=s.trade; if(WINDOWS.includes(s.days))A.days=s.days; if(BOROS.includes(s.boro))A.boro=s.boro; if(['open','pre','permit'].includes(s.stage))A.stage=s.stage;}}catch(e){}
+let PREV='';
+try{const today=NOW.toISOString().slice(0,10), v=JSON.parse(localStorage.getItem('nyc-visit')||'null')||{}; PREV=v.last===today?(v.prev||''):(v.last||''); localStorage.setItem('nyc-visit',JSON.stringify({last:today,prev:PREV}));}catch(e){}
 const PUBLIC = /NYC Agency|NYCHA|School Construction|Government|HPD/;
 const fmt$ = v => v>=1e9? '$'+(v/1e9).toFixed(2)+'B' : v>=1e6? '$'+(v/1e6).toFixed(1)+'M' : v>=1e3? '$'+Math.round(v/1e3)+'K' : '$'+Math.round(v);
 const fmtN = v => Math.round(v).toLocaleString('en-US');
@@ -43,9 +45,9 @@ const KINDS = {
 const FL = ['foundation','structural','earth','soe','mech','boiler','sprinkler','plumbing','standpipe','solar','greenroof','demo','gcwork'];
 
 const jobs = SRC.rows.map(r=>{
-  const [id,status,house,street,boro,jobType,cost,sqfa,bldg,stories,units,exUnits,date,statusDate,approved,permitDate,ownerBiz,owner,ownerType,appTitle,applicant,appBiz,appAddr,rep,desc,nta,lat,lng,bin,bbl,zip,flags,gc]=r;
+  const [id,status,house,street,boro,jobType,cost,sqfa,bldg,stories,units,exUnits,date,statusDate,approved,permitDate,ownerBiz,owner,ownerType,appTitle,applicant,appBiz,appAddr,rep,desc,nta,lat,lng,bin,bbl,zip,flags,gc,repC]=r;
   const f={}; FL.forEach((k,i)=>f[k]=flags[i]==='1');
-  return {id,status,addr:(house+' '+street).trim(),boro,jobType,cost,sqfa,bldg,stories,units,exUnits,date,statusDate,approved,permitDate,ownerBiz,owner,ownerType,appTitle,applicant,appBiz,appAddr,rep,desc,nta,lat,lng,bin,bbl,zip,f,gc:gc||null,
+  return {id,status,addr:(house+' '+street).trim(),boro,jobType,cost,sqfa,bldg,stories,units,exUnits,date,statusDate,approved,permitDate,ownerBiz,owner,ownerType,appTitle,applicant,appBiz,appAddr,rep,desc,nta,lat,lng,bin,bbl,zip,f,gc:gc||null,repC:repC||null,
     kind:KINDS[jobType]||KINDS.Alteration, stage:stageOf(status,permitDate,gc)};
 }).map(j=>{
   // A plain alteration reports the whole building's units and stories, not the work's, so only count units a job adds.
@@ -55,12 +57,16 @@ const jobs = SRC.rows.map(r=>{
 });
 const byId = new Map(jobs.map(j=>[j.id,j]));
 
+// New buildings have no filed cost: scale the base cost per sq ft by building type.
+function psfTier(j){return /Family/.test(j.bldg)&&j.units<=3?[.75,'1 to 3 family house']:j.stories>=7?[1.15,'7+ stories']:[1,'low or mid-rise']}
 function tradeValue(j,k){ const T=TRADES[k]; return j.value*T.s; }
 function compute(){
   jobs.forEach(j=>{
     j.age = daysAgo(j.date);
+    j.fresh = !!PREV && j.date>=PREV;
     j.fromCost = j.cost>0;
-    j.value = j.fromCost ? j.cost : j.sqfa*A.psf;
+    j.psf = Math.round(A.psf*psfTier(j)[0]);
+    j.value = j.fromCost ? j.cost : j.sqfa*j.psf;
     j.tv = tradeValue(j,A.trade);
     j.c1 = !PUBLIC.test(j.ownerType) && j.stage>=0;
     j.c2 = j.c1 && (j.sqfa>=5000 || j.newUnits>=5 || j.cost>=SRC.altMinCost);
@@ -74,7 +80,7 @@ function ago(j){return j.age===0?'today':j.age===1?'yesterday':j.age+' days ago'
 function newPill(j){return j.age<=14?'<span class="pill p-go" style="margin-left:6px">NEW</span>':''}
 function kindPill(j){return `<span class="pill p-${j.kind.k==='new'?'go':j.kind.k==='reno'?'rev':'wait'}">${esc(j.kind.t)}</span>`}
 function stagePill(j){return j.stage<0?'<span class="pill p-obj">Withdrawn</span>':`<span class="pill p-${j.stage>=3?'rev':'wait'}">${STAGES[j.stage]}</span>`}
-function gcPill(j){return j.gc?'<span class="pill p-rev" style="margin-left:6px">GC ON PERMIT</span>':''}
+function gcPill(j){return (j.fresh?'<span class="pill p-go" style="margin-left:6px">SINCE LAST VISIT</span>':'')+(j.gc?'<span class="pill p-rev" style="margin-left:6px">GC ON PERMIT</span>':'')+(j.gc||j.repC?'<span class="pill p-wait" style="margin-left:6px">PHONE</span>':'')}
 const ownerName = j => j.ownerBiz || j.owner || 'Owner not stated';
 const proTitle = j => j.appTitle==='RA'?'Architect':j.appTitle==='PE'?'Engineer':j.appTitle==='LA'?'Landscape architect':'Applicant';
 const bisLink = j => j.bin?'https://a810-bisweb.nyc.gov/bisweb/PropertyProfileOverviewServlet?bin='+encodeURIComponent(j.bin):'';
@@ -87,8 +93,8 @@ function linksOf(j){
   L.push({t:'Look up the owner',s:'Search for '+ownerName(j)+' and this address',u:gsearch('"'+ownerName(j)+'" '+j.addr+' '+j.boro+' NY')});
   return L;
 }
-function sheetRow(j){return [j.date,j.id,j.addr,j.boro,j.nta,j.kind.t,j.status,j.sqfa||'',j.units||'',j.stories||'',Math.round(j.value),j.fromCost?'filed cost':'floor area estimate',j.ownerBiz,j.owner,j.ownerType,proTitle(j),j.applicant,j.appBiz,j.appAddr,j.rep,j.gc?j.gc[0]:'',j.desc,bisLink(j)].map(v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"').join(',')}
-function sheet(list){return ['Filed,DOB job,Address,Borough,Neighborhood,Type,DOB status,Sq ft,Units,Stories,Est. value,Value source,Owner business,Owner contact,Owner type,Design pro,Design pro name,Design firm,Design firm address,Filing rep,Contractor on permit,Description,DOB profile'].concat(list.map(sheetRow)).join('\n')}
+function sheetRow(j){return [j.date,j.id,j.addr,j.boro,j.nta,j.kind.t,j.status,j.sqfa||'',j.units||'',j.stories||'',Math.round(j.value),j.fromCost?'filed cost':'floor area estimate',j.ownerBiz,j.owner,j.ownerType,proTitle(j),j.applicant,j.appBiz,j.appAddr,j.rep,j.repC?j.repC[0]:'',j.repC?j.repC[1]:'',j.gc?j.gc[0]:'',j.gc?j.gc[1]:'',j.gc?j.gc[4]:'',j.gc?j.gc[5]:'',j.desc,bisLink(j)].map(v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"').join(',')}
+function sheet(list){return ['Filed,DOB job,Address,Borough,Neighborhood,Type,DOB status,Sq ft,Units,Stories,Est. value,Value source,Owner business,Owner contact,Owner type,Design pro,Design pro name,Design firm,Design firm address,Filing rep,Filing rep phone,Filing rep email,Contractor on permit,Contractor contact,Contractor phone,Contractor email,Description,DOB profile'].concat(list.map(sheetRow)).join('\n')}
 
 const KEYS={
   gc:/(\bstor(y|ies)\b|\bunits?\b|construct|build|erect|addition|enlarg|renovat|demoli|partition|elevator|convert)/i,
@@ -173,7 +179,7 @@ ${j.gc?`I see ${j.gc[0]} is on the permit. If they are buying out the trades, I'
 }
 function emailPro(j){
   const toGC=!!j.gc, who=toGC?j.gc[1]:j.applicant, first=(who||'').split(' ')[0]||'there';
-  return `Subject: ${j.addr}, ${j.boro}: ${tname(A.trade)} sub
+  return `${toGC&&j.gc[5]?'To: '+j.gc[5]+'\n':''}Subject: ${j.addr}, ${j.boro}: ${tname(A.trade)} sub
 
 Hi ${first},
 
@@ -200,7 +206,7 @@ const callJobs = () => jobs.filter(j=>j.c4);
 const stageLabel = () => A.stage==='pre'?'before a permit':A.stage==='permit'?'with a permit issued':'still open';
 function ticker(){
   const stale=daysAgo(PULLED);
-  $('#ticker').innerHTML=`Pulled ${fdate(PULLED)}${stale>3?` <b style="color:var(--bad)">(${stale} days old: run pull_nyc.py)</b>`:''} · <b>${fmtN(jobs.length)}</b> DOB filings read · <b>${callJobs().length}</b> on the call list (${A.boro||'all boroughs'}, last ${A.days} days) · $${A.psf}/sq ft where no cost is filed · ${TRADES[A.trade].n} at ${Math.round(TRADES[A.trade].s*100)}% of cost`;
+  $('#ticker').innerHTML=`Pulled ${fdate(PULLED)}${stale>3?` <b style="color:var(--bad)">(${stale} days old: run pull_nyc.py)</b>`:''} · <b>${fmtN(jobs.length)}</b> DOB filings read ·${PREV?` <b>${callJobs().filter(j=>j.fresh).length}</b> on the list since your last visit (${fdate(PREV)}) ·`:''} <b>${callJobs().length}</b> on the call list (${A.boro||'all boroughs'}, last ${A.days} days) · $${A.psf}/sq ft where no cost is filed · ${TRADES[A.trade].n} at ${Math.round(TRADES[A.trade].s*100)}% of cost`;
 }
 const sum=(l,k)=>l.reduce((a,j)=>a+j[k],0);
 function home(){
@@ -234,19 +240,21 @@ function bind(sel){document.querySelectorAll(sel+' tr.row').forEach(tr=>tr.oncli
 function assumeControls(){
   $('#assume1').innerHTML=`<div class="ctl"><label for="a-days">Filed within</label><select id="a-days">${WINDOWS.map(d=>`<option value="${d}" ${d===A.days?'selected':''}>Last ${d} days</option>`).join('')}</select></div>
   <div class="ctl"><label for="a-stage">Stage</label><select id="a-stage"><option value="open">Any open job</option><option value="pre">Before a permit (earliest)</option><option value="permit">Permit issued (GC named)</option></select></div>
+  ${PREV?`<div class="ctl"><label for="a-fresh">Show</label><select id="a-fresh"><option value="">Whole list</option><option value="1">Since last visit only</option></select></div>`:''}
   <div class="ctl"><label for="a-psf">Cost per sq ft (new buildings)</label><input type="range" id="a-psf" min="250" max="1000" step="25" value="${A.psf}"><output id="o-psf">$${A.psf}</output></div>
   <button class="btn ghost" id="sheetbtn" style="margin-left:auto">Copy contact sheet (CSV)</button>`;
   $('#a-stage').value=A.stage;
   $('#sheetbtn').onclick=async()=>{const c=callJobs().sort((a,b)=>b.score-a.score);try{await navigator.clipboard.writeText(sheet(c));$('#sheetbtn').textContent='Copied '+c.length+' rows'}catch(e){$('#sheetbtn').textContent='Copy blocked by browser'}};
   $('#a-days').onchange=e=>{A.days=+e.target.value;save();refresh()};
+  if($('#a-fresh')){$('#a-fresh').value=freshOnly?'1':'';$('#a-fresh').onchange=e=>{freshOnly=!!e.target.value;callShown=PAGE;callList()};}
   $('#a-stage').onchange=e=>{A.stage=e.target.value;save();refresh()};
   $('#a-psf').oninput=e=>{A.psf=+e.target.value;$('#o-psf').textContent='$'+A.psf;save();refresh()};
 }
 const PAGE=150;
-let callShown=PAGE, allShown=PAGE;
+let callShown=PAGE, allShown=PAGE, freshOnly=false;
 function more(id,shown,total,fn){return total>shown?`<div class="pad" style="text-align:center"><button class="btn ghost" id="${id}">Show ${Math.min(PAGE,total-shown)} more (${fmtN(total-shown)} hidden)</button></div>`:''}
 function callList(){
-  const c=callJobs().sort((a,b)=>b.score-a.score);
+  const c=callJobs().filter(j=>!freshOnly||j.fresh).sort((a,b)=>b.score-a.score);
   $('#call-count').textContent=`${c.length} projects · ${fmt$(sum(c,'tv'))} of ${tname(A.trade)} work · sorted by score`;
   $('#calltable').innerHTML=head(true)+'<tbody>'+c.slice(0,callShown).map((j,i)=>row(j,i+1)).join('')+'</tbody>';
   $('#callmore').innerHTML=more('callmorebtn',callShown,c.length);
@@ -289,11 +297,11 @@ function jobView(id){
   const steps=STAGES.map((s,i)=>`<div class="${i<=j.stage?'on':''}">${s}${i===0?' · '+fdate(j.date):i===2&&j.approved?' · '+fdate(j.approved):i===3&&j.permitDate?' · '+fdate(j.permitDate):''}</div>`).join('');
   const N=tradeNeeds(j);
   const keys=[A.trade,...Object.keys(TRADES).filter(k=>k!==A.trade)];
-  const team=[['Owner',j.ownerBiz||j.owner,j.ownerBiz?j.owner+' · '+j.ownerType:j.ownerType],[proTitle(j)+' of record',j.appBiz||j.applicant,j.appBiz?j.applicant+(j.appAddr?' · '+j.appAddr:''):j.appAddr],j.rep?['Filing representative (expediter)',j.rep,'Files the paperwork; knows where the job stands']:null,j.gc?['Contractor on permit',j.gc[0],j.gc[1]+' · '+j.gc[2]+' permit issued '+fdate(j.gc[3])]:null].filter(x=>x&&x[1]);
+  const team=[['Owner',j.ownerBiz||j.owner,j.ownerBiz?j.owner+' · '+j.ownerType:j.ownerType],[proTitle(j)+' of record',j.appBiz||j.applicant,j.appBiz?j.applicant+(j.appAddr?' · '+j.appAddr:''):j.appAddr],j.rep?['Filing representative (expediter)',j.rep,'Files the paperwork; knows where the job stands',j.repC]:null,j.gc?['Contractor on permit',j.gc[0],j.gc[1]+' · '+j.gc[2]+' permit issued '+fdate(j.gc[3]),[j.gc[4],j.gc[5]]]:null].filter(x=>x&&x[1]);
   $('#v-job').innerHTML=`<section>
     <div class="eyebrow"><a href="#call-list">Call list</a> / ${esc(j.boro)} / ${esc(j.id)}</div>
     <div class="job-hero"><div><h2>${esc(j.addr)}</h2><div class="sub" style="margin:-4px 0 8px">${esc(j.nta?j.nta+', ':'')}${esc(j.boro)} ${esc(j.zip)} · <b style="color:var(--ink)">Filed ${fdate(j.date)}</b> (${ago(j)})${newPill(j)}</div><div>${kindPill(j)} ${stagePill(j)} ${j.c4?`<span class="chip">Call list · score ${j.score}</span>`:`<span class="chip">Not on the call list. ${esc(why)}</span>`}</div></div>
-    <div style="text-align:right"><div class="eyebrow">Est. ${esc(tname(A.trade))}</div><div class="big" style="font-size:64px">${fmt$(j.tv)}</div><div class="sub">${j.fromCost?`of ${fmt$(j.value)} cost filed with DOB`:`of ${fmt$(j.value)} at $${A.psf}/sq ft (no cost filed)`}</div></div></div>
+    <div style="text-align:right"><div class="eyebrow">Est. ${esc(tname(A.trade))}</div><div class="big" style="font-size:64px">${fmt$(j.tv)}</div><div class="sub">${j.fromCost?`of ${fmt$(j.value)} cost filed with DOB`:`of ${fmt$(j.value)} at $${j.psf}/sq ft for ${psfTier(j)[1]} (no cost filed)`}</div></div></div>
   </section>
   <div class="panel pad" style="margin-bottom:20px">
     <h3>Where it stands</h3>
@@ -323,8 +331,8 @@ function jobView(id){
   </div>
   <section style="padding-bottom:0"><div class="panel pad" style="border-color:var(--accent)">
     <h3>Who's on the project</h3>
-    <div class="cards">${team.map(p=>`<a class="card" href="${esc(gsearch(p[1]+' '+(p[0]==='Owner'?j.boro:p[0].split(' ')[0])+' NY'))}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><span>${esc(p[0])}</span><b>${esc(p[1])} ↗</b>${p[2]?`<span>${esc(p[2])}</span>`:''}</a>`).join('')}</div>
-    <p class="note">Names are from the DOB filing${j.gc?' and permit':''}. DOB does not publish phone numbers or emails here; tap a name to look up the firm.</p>
+    <div class="cards">${team.map(p=>`<a class="card" href="${esc(gsearch(p[1]+' '+(p[0]==='Owner'?j.boro:p[0].split(' ')[0])+' NY'))}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><span>${esc(p[0])}</span><b>${esc(p[1])} ↗</b>${p[2]?`<span>${esc(p[2])}</span>`:''}${p[3]&&(p[3][0]||p[3][1])?`<span style="display:block;margin-top:6px;color:var(--ink);font-family:var(--mono);font-size:12.5px;overflow-wrap:anywhere">${esc(p[3][0])}${p[3][0]&&p[3][1]?'<br>':''}${esc(p[3][1])}</span>`:''}</a>`).join('')}</div>
+    <p class="note">Names are from the DOB filing${j.gc?' and permit':''}. Phone numbers and emails are the business contacts contractors and filing representatives registered with DOB licensing. DOB does not publish contacts for owners, architects or engineers; tap a name to look up the firm.</p>
   </div></section>
   <section style="padding-bottom:0"><div class="panel pad">
     <h3>What they need from each trade</h3>

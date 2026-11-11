@@ -103,12 +103,14 @@
       <h3>4 · Rank</h3>
       <p>Score = freshness (up to 35, falling to 0 at the edge of the window) + size (up to 35, log scale of estimated value) + type of work (new building 25, new building with parts remaining 22, major alteration 15, alteration 10) + 5 for housing units.</p>
       <h3>5 · Estimate</h3>
-      <p>Alterations carry a cost the owner filed with DOB, and the page uses it. Owners often file low, so treat it as a floor. DOB does not collect a cost on new buildings, so those use floor area × cost per sq ft (default $500, change it on the Call list tab). Each trade's slice is a rule-of-thumb share.</p>
+      <p>Alterations carry a cost the owner filed with DOB, and the page uses it. Owners often file low, so treat it as a floor. DOB does not collect a cost on new buildings, so those use floor area × cost per sq ft. The base is $500 (change it on the Call list tab), scaled by building type: 75% for 1 to 3 family houses, 100% for low and mid-rise buildings, 115% for 7 stories and up. Each trade's slice is a rule-of-thumb share.</p>
       <table class="mini" id="sharetable"></table>
       <p class="note">These are rough numbers for qualifying leads, not estimates to bid from.</p>
       <h3>6 · Who to contact</h3>
-      <p>The filing names the owner, the architect or engineer of record and the filing representative. DOB does not publish their phone numbers or emails in this data, so each name links to a search. Every project also links to the DOB building profile and the zoning map for the lot.</p>
-      <p>Source: NYC Open Data, <a href="https://data.cityofnewyork.us/d/w9ak-ipjd">DOB NOW: Build – Job Application Filings</a> and <a href="https://data.cityofnewyork.us/d/rbx6-tga4">DOB NOW: Build – Approved Permits</a>. Refresh with <code>python3 pull_nyc.py && python3 build.py</code>.</p>
+      <p>The filing names the owner, the architect or engineer of record and the filing representative. Contractors and filing representatives register a business phone and email with DOB licensing, and the page shows those: every contractor on a permit, and most filing representatives. DOB does not publish contacts for owners, architects or engineers, so those names link to a search. The filing representative is often the fastest route to the owner.</p>
+      <h3>7 · What's new</h3>
+      <p>The page remembers the date of your last visit in your browser and marks jobs filed since then. The Call list tab can show only those. Every project also links to the DOB building profile and the zoning map for the lot.</p>
+      <p>Source: NYC Open Data, <a href="https://data.cityofnewyork.us/d/w9ak-ipjd">DOB NOW: Build – Job Application Filings</a> and <a href="https://data.cityofnewyork.us/d/rbx6-tga4">DOB NOW: Build – Approved Permits</a> and <a href="https://data.cityofnewyork.us/d/t8hj-ruu2">DOB License Info</a>. Refresh with <code>python3 pull_nyc.py && python3 build.py</code>.</p>
     </section>
   </div>
 

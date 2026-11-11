@@ -5,6 +5,7 @@ Run: python3 pull_nyc.py [days]     (default 180 days back), then python3 build.
 Sources (Socrata API, no key needed; set NYC_APP_TOKEN to avoid rate limits):
   w9ak-ipjd  DOB NOW: Build - Job Application Filings
   rbx6-tga4  DOB NOW: Build - Approved Permits
+  t8hj-ruu2  DOB License Info (business phone and email for licensed GCs and filing representatives)
 """
 import json, os, sys, datetime, urllib.parse, urllib.request
 from pathlib import Path
@@ -55,6 +56,22 @@ def biz(v):
     return "" if v.upper().strip(".") in ("", "PR", "N/A", "NA", "NOT APPLICABLE", "NONE", "OWNER", "INDIVIDUAL", "SELF", "N.A") else v
 
 
+def key(v):
+    """Normalize a business name for matching across datasets."""
+    v = "".join(c for c in clean(v).upper() if c.isalnum() or c == " ")
+    return " ".join(w for w in v.split() if w not in ("INC", "LLC", "CORP", "CO", "LTD", "THE", "CORPORATION", "COMPANY", "INCORPORATED"))
+
+
+def phone(v):
+    d = "".join(c for c in str(v or "") if c.isdigit())[-10:]
+    return f"({d[:3]}) {d[3:6]}-{d[6:]}" if len(d) == 10 and d[0] not in "01" and len(set(d)) > 2 else ""
+
+
+def email(v):
+    v = clean(v).lower()
+    return v if "@" in v and "." in v.split("@")[-1] and " " not in v else ""
+
+
 def main():
     today = datetime.date.today()
     since = (today - datetime.timedelta(days=DAYS)).isoformat()
@@ -63,16 +80,29 @@ def main():
     rows = get("w9ak-ipjd", **{"$where": f"{base} AND job_type in ({types})"})
     rows += get("w9ak-ipjd", **{"$where": f"{base} AND job_type = 'Alteration' AND initial_cost::number >= {ALT_MIN_COST}"})
     permits = get("rbx6-tga4", **{
-        "$select": "job_filing_number,work_type,issued_date,applicant_business_name,applicant_first_name,applicant_last_name",
+        "$select": "job_filing_number,work_type,issued_date,applicant_business_name,applicant_first_name,applicant_last_name,applicant_license",
         "$where": f"issued_date >= '{since}' AND permittee_s_license_type = 'GC' AND work_type in "
                   "('General Construction','Foundation','Structural','Earth Work','Support of Excavation')"})
+    # Public business contacts from DOB licensing: GCs by license number, filing representatives by business name.
+    lic = get("t8hj-ruu2", **{
+        "$select": "license_type,license_number,business_name,business_email,business_phone_number,license_status",
+        "$where": "license_type in ('GENERAL CONTRACTOR','FILING REPRESENTATIVE')"})
+    gc_contact, rep_contact = {}, {}
+    for l in sorted(lic, key=lambda l: l.get("license_status") != "ACTIVE"):
+        c = [phone(l.get("business_phone_number")), email(l.get("business_email"))]
+        if not any(c):
+            continue
+        if l["license_type"] == "GENERAL CONTRACTOR":
+            gc_contact.setdefault(clean(l.get("license_number")).lstrip("0"), c)
+        elif key(l.get("business_name")):
+            rep_contact.setdefault(key(l.get("business_name")), c)
     # One contractor per job: prefer the General Construction permit, then the earliest issued.
     gc = {}
     for p in sorted(permits, key=lambda p: (p["work_type"] != "General Construction", p.get("issued_date", ""))):
         job = p["job_filing_number"].split("-")[0]
         if job not in gc and clean(p.get("applicant_business_name")):
             gc[job] = [clean(p["applicant_business_name"]).title(), name(p.get("applicant_first_name"), p.get("applicant_last_name")),
-                       p["work_type"], (p.get("issued_date") or "")[:10]]
+                       p["work_type"], (p.get("issued_date") or "")[:10]] + gc_contact.get(clean(p.get("applicant_license")).lstrip("0"), ["", ""])
     out, seen = [], set()
     for r in rows:
         job = r["job_filing_number"].split("-")[0]
@@ -92,12 +122,14 @@ def main():
             biz(r.get("filing_representative_business_name")), clean(r.get("job_description")), clean(r.get("nta")),
             round(num(r.get("latitude")), 5), round(num(r.get("longitude")), 5), clean(r.get("bin")), clean(r.get("bbl")),
             clean(r.get("postcode")), "".join("1" if str(r.get(f, "")).upper() == "YES" else "0" for f in FLAGS),
-            gc.get(job) or 0,
+            gc.get(job) or 0, rep_contact.get(key(r.get("filing_representative_business_name"))) or 0,
         ])
     out.sort(key=lambda x: x[12], reverse=True)
     (R / "data/nyc.json").write_text(json.dumps({"pulled": today.isoformat(), "since": since, "altMinCost": ALT_MIN_COST, "rows": out},
                                                 separators=(",", ":"), ensure_ascii=False))
-    print(f"Wrote data/nyc.json: {len(out)} filings since {since}, {sum(1 for x in out if x[-1])} with a contractor on a permit")
+    print(f"Wrote data/nyc.json: {len(out)} filings since {since}, {sum(1 for x in out if x[32])} with a contractor on a permit "
+          f"({sum(1 for x in out if x[32] and (x[32][4] or x[32][5]))} with phone or email), "
+          f"{sum(1 for x in out if x[33])} with a filing representative contact")
 
 
 if __name__ == "__main__":
