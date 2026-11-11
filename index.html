@@ -185,7 +185,7 @@ table.mini td{padding:6px 8px}
         <div class="ctl"><label for="f-q">Search</label><input type="search" id="f-q" placeholder="Project, address, description"></div>
         <div class="ctl"><label for="f-b">Town</label><select id="f-b"><option value="">All</option></select></div>
         <div class="ctl"><label for="f-s">Use</label><select id="f-s"><option value="">All</option></select></div>
-        <div class="ctl"><label for="f-c">Show</label><select id="f-c"><option value="">Everything</option><option value="1">Call list only</option></select></div>
+        <div class="ctl"><label for="f-c">Show</label><select id="f-c"><option value="">Everything</option><option value="1">Call list only</option><option value="2">No floor area stated</option></select></div>
         <div class="sub" id="f-count"></div>
       </div>
       <div class="tablewrap"><table id="alltable"></table></div>
@@ -211,8 +211,8 @@ table.mini td{padding:6px 8px}
       <h3>2 · Cut</h3>
       <ul>
         <li><b>Private work.</b> Hospitals, schools, government buildings, utilities and parks come out. They go to public bid.</li>
-        <li><b>A real building.</b> At least 5,000 sq ft of floor area or 5 housing units. Some referrals give units but no floor area; those are sized at 1,300 sq ft per unit (close to the median of the projects that report both) and marked with a ~.</li>
-        <li><b>Local-builder size.</b> Under 250,000 sq ft. The 28-story towers and the Westchester Crossing megaproject go to regional GCs.</li>
+        <li><b>A real building.</b> At least 5,000 sq ft of floor area or 5 housing units. Some referrals give units but no floor area. Those are tagged NO FLOOR AREA and get no dollar estimate rather than a guessed one.</li>
+        <li><b>Local-builder size.</b> Under 250,000 sq ft, or 200 units or fewer where no floor area is given. The 28-story towers and the Westchester Crossing megaproject go to regional GCs.</li>
         <li><b>Just filed.</b> Filed in the last 30 days by default (change it on the Call list tab), so the project is just starting its local review.</li>
       </ul>
       <h3>3 · Rank</h3>
@@ -281,7 +281,8 @@ const fixSp = t => String(t||'').split(' ').map(w=>KEEPWORD.test(w)?w:w.replace(
 const USES=['Agricultural','Commercial or Office','Industrial','Institutional, Governmental or other Public Facility','Mixed Use','Recreation or Conservation','Residential','Utilities, Public Infrastructure or Services'];
 const fixUse = u => USES.find(x=>x.replace(/\s/g,'')===String(u||'').replace(/\s/g,''))||u;
 Object.values(EV).forEach(e=>{e.z=fixSp(e.z);(e.cm||[]).forEach(c=>{c[1]=fixSp(c[1]);c[2]=fixSp(c[2])})});
-const SQFT_PER_UNIT = 1300; // gross sq ft per housing unit, used only when the referral gives units but no floor area
+const MAX_UNITS = 200; // size cut for referrals that give housing units but no floor area
+const est$ = v => v>0 ? fmt$(v) : 'Not stated'; // no floor area means no dollar estimate, not $0
 const tname = k => { const n=TRADES[k].n; return /^(GC|HVAC)/.test(n)?n:n.toLowerCase(); };
 
 const jobs = RAW.map(raw=>{
@@ -292,8 +293,8 @@ const jobs = RAW.map(raw=>{
   if(/re-?approval|amend|extension|modif|revis/i.test(txt)) kind={k:'amend',t:'Changes an earlier approval',w:5};
   else if(/renovat|conver|change of use|interior|fit-?out|reuse|re-use|existing building/i.test(txt) && !/construct|erect|new (building|\d)|proposed (\d|a new|new)|develop/i.test(txt)) kind={k:'reno',t:'Renovation or change of use',w:15};
   else kind={k:'new',t:'New construction',w:25};
-  const estSq=!sqfa&&units>=5; // floor area missing: estimate it from the unit count
-  return {id,name:name.trim(),agency,town,action,sqfa,area:estSq?units*SQFT_PER_UNIT:sqfa,estSq,sqd,addr,lat,lng,date,use:use||'Not classified',units,affh,comm,desc,stories,parking,acres,rec,recTitle,recAgency,kind,age:daysAgo(date),zone:(EV[id]||{}).z||'',cm:(EV[id]||{}).cm||[]};
+  const noArea=!sqfa&&units>=5; // units but no floor area: shown as its own category, never estimated
+  return {id,name:name.trim(),agency,town,action,sqfa,area:sqfa,noArea,sqd,addr,lat,lng,date,use:use||'Not classified',units,affh,comm,desc,stories,parking,acres,rec,recTitle,recAgency,kind,age:daysAgo(date),zone:(EV[id]||{}).z||'',cm:(EV[id]||{}).cm||[]};
 });
 
 function compute(){
@@ -303,7 +304,7 @@ function compute(){
     j.tv = A.trade==='site' ? Math.max(j.value*T.s, j.sqd*12) : j.value*T.s;
     j.c1 = !PUBLIC.test(j.use);
     j.c2 = j.c1 && (j.area>=5000 || j.units>=5);
-    j.c3 = j.c2 && j.area<=250000;
+    j.c3 = j.c2 && j.area<=250000 && !(j.noArea && j.units>MAX_UNITS);
     j.c4 = j.c3 && j.age<=A.days;
     j.score = j.c4 ? Math.round(Math.max(0,35-j.age/A.days*35) + Math.min(35,Math.max(0,(Math.log10(Math.max(j.area,1000))-3.5)*18)) + j.kind.w + (j.units>0?5:0)) : 0;
   });
@@ -433,7 +434,7 @@ I saw ${j.name} at ${j.addr.split(',')[0]} come through ${j.town}'s ${j.agency||
 
 From the filing, the ${tname(A.trade)} side looks like: ${tradeNeeds(j)[A.trade].slice(0,2).map(x=>x.replace(/\.$/,'')).join('; ').replace(/^./,c=>c.toLowerCase())}.
 
-We do ${T.need} on projects like this across Westchester, including [two local jobs]. By our rough math the ${tname(A.trade)} package here is in the ${fmt$(j.tv*0.8)} to ${fmt$(j.tv*1.2)} range. We'd be glad to give you early pricing to help with your budget while the plans are still in review.
+We do ${T.need} on projects like this across Westchester, including [two local jobs]. ${j.tv>0?`By our rough math the ${tname(A.trade)} package here is in the ${fmt$(j.tv*0.8)} to ${fmt$(j.tv*1.2)} range. `:''}We'd be glad to give you early pricing to help with your budget while the plans are still in review.
 
 Can we get on the bid list? I'll call [Thursday] in case that's easier.
 
@@ -454,7 +455,7 @@ function home(){
   $('#h-eyebrow').textContent=`Westchester County · Planning Board referrals · Nov 2025 to Nov 2026 · pulled ${PULLED}`;
   const c=jobs.filter(j=>j.c4);
   $('#h-big').textContent=fmt$(c.reduce((a,j)=>a+j.value,0));
-  $('#h-lede').innerHTML=`Claude read all <b>${jobs.length}</b> projects Westchester towns sent to the County Planning Board in the last year. <b>${c.length}</b> are private, local-builder size, and were filed in the last ${A.days} days. That's about <b>${fmt$(c.reduce((a,j)=>a+j.tv,0))}</b> of ${tname(A.trade)} work nobody has bid yet. Everything referred in the year, including public work and megaprojects, totals ${fmt$(tot)}.`;
+  $('#h-lede').innerHTML=`Claude read all <b>${jobs.length}</b> projects Westchester towns sent to the County Planning Board in the last year. <b>${c.length}</b> are private, local-builder size, and were filed in the last ${A.days} days. That's about <b>${fmt$(c.reduce((a,j)=>a+j.tv,0))}</b> of ${tname(A.trade)} work nobody has bid yet. Everything referred in the year, including public work and megaprojects, totals ${fmt$(tot)}.${(n=>n?` <b>${n}</b> more on the list ${n===1?'gives':'give'} units but no floor area, so ${n===1?'it has':'they have'} no dollar figure.`:'')(c.filter(j=>j.noArea).length)}`;
   const s0=jobs,s1=jobs.filter(j=>j.c1),s2=jobs.filter(j=>j.c2),s3=jobs.filter(j=>j.c3),s4=c;
   const steps=[['Referred','Projects with construction scope',s0],['Cut 1','Private, not public or institutional',s1],['Cut 2','A real building: 5,000+ sq ft or 5+ units',s2],['Cut 3','Local-builder size, under 250,000 sq ft',s3],['Call list',`Filed in the last ${A.days} days`,s4]];
   $('#funnel').innerHTML=`<div class="pad" style="padding-bottom:4px"><div class="eyebrow">The bid schedule</div><h3 style="margin:4px 0 8px">From every referral to the first call</h3></div>`+
@@ -476,7 +477,7 @@ function home(){
 }
 function head(rank){return `<thead><tr>${rank?'<th>#</th>':''}<th>Filed</th><th>Project</th><th>Type of work</th><th class="num">Sq ft</th><th class="num">Units</th><th class="num">Est. ${esc(tname(A.trade))}</th><th class="num">Score</th></tr></thead>`}
 function row(j,rank){
-  return `<tr class="row" data-id="${j.id}">${rank!==undefined?`<td class="rank">${rank}</td>`:''}<td class="num" style="text-align:left;white-space:nowrap">${fdate(j.date)}<div class="sub">${ago(j)}</div></td><td><div class="addr">${esc(j.name)}${newPill(j)}${TEAM[j.id]&&TEAM[j.id].people.length?'<span class="pill p-rev" style="margin-left:6px">TEAM FOUND</span>':''}</div><div class="sub">${esc(j.town)} · ${esc(j.use)}</div><div class="sub" style="max-width:52ch;margin-top:2px">${esc(j.desc.length>150?j.desc.slice(0,150).replace(/\s+\S*$/,'')+'…':j.desc)}</div></td><td>${kindPill(j)}</td><td class="num">${j.area?(j.estSq?'~':'')+fmtN(j.area):'·'}</td><td class="num">${j.units||'·'}</td><td class="num">${fmt$(j.tv)}</td><td class="num">${j.score||'·'}</td></tr>`;
+  return `<tr class="row" data-id="${j.id}">${rank!==undefined?`<td class="rank">${rank}</td>`:''}<td class="num" style="text-align:left;white-space:nowrap">${fdate(j.date)}<div class="sub">${ago(j)}</div></td><td><div class="addr">${esc(j.name)}${newPill(j)}${j.noArea?'<span class="pill p-wait" style="margin-left:6px">NO FLOOR AREA</span>':''}${TEAM[j.id]&&TEAM[j.id].people.length?'<span class="pill p-rev" style="margin-left:6px">TEAM FOUND</span>':''}</div><div class="sub">${esc(j.town)} · ${esc(j.use)}</div><div class="sub" style="max-width:52ch;margin-top:2px">${esc(j.desc.length>150?j.desc.slice(0,150).replace(/\s+\S*$/,'')+'…':j.desc)}</div></td><td>${kindPill(j)}</td><td class="num">${j.sqfa?fmtN(j.sqfa):'·'}</td><td class="num">${j.units||'·'}</td><td class="num">${est$(j.tv)}</td><td class="num">${j.score||'·'}</td></tr>`;
 }
 function bind(sel){document.querySelectorAll(sel+' tr.row').forEach(tr=>tr.onclick=()=>{location.hash='job-'+tr.dataset.id})}
 function assumeControls(){
@@ -491,11 +492,11 @@ function callList(){const c=jobs.filter(j=>j.c4).sort((a,b)=>a.age-b.age||b.scor
 let sortK='score',sortDir=-1;
 function allJobs(){
   const q=$('#f-q').value.toLowerCase(),b=$('#f-b').value,s=$('#f-s').value,c=$('#f-c').value;
-  let list=jobs.filter(j=>(!b||j.town===b)&&(!s||j.use===s)&&(!c||j.c4)&&(!q||(j.name+' '+j.addr+' '+j.desc).toLowerCase().includes(q)));
+  let list=jobs.filter(j=>(!b||j.town===b)&&(!s||j.use===s)&&(!c||(c==='1'?j.c4:j.noArea))&&(!q||(j.name+' '+j.addr+' '+j.desc).toLowerCase().includes(q)));
   const val=sortK==='kind'?j=>j.kind.t:j=>j[sortK];
   list.sort((x,y)=>{const a=val(x),bb=val(y);return (a>bb?1:a<bb?-1:0)*sortDir});
   $('#f-count').textContent=list.length+' projects';
-  const cols=[['age','Filed'],['name','Project'],['kind','Type of work'],['area','Sq ft','num'],['units','Units','num'],['tv','Est. '+tname(A.trade),'num'],['score','Score','num']];
+  const cols=[['age','Filed'],['name','Project'],['kind','Type of work'],['sqfa','Sq ft','num'],['units','Units','num'],['tv','Est. '+tname(A.trade),'num'],['score','Score','num']];
   $('#alltable').innerHTML='<thead><tr>'+cols.map(k=>`<th class="${k[2]||''}" data-k="${k[0]}">${esc(k[1])}${sortK===k[0]?(sortDir>0?' ↑':' ↓'):''}</th>`).join('')+'</tr></thead><tbody>'+list.map(j=>row(j)).join('')+'</tbody>';
   document.querySelectorAll('#alltable th').forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(sortK===k)sortDir*=-1;else{sortK=k;sortDir=(k==='name'||k==='age'||k==='kind')?1:-1}allJobs()});
   bind('#alltable');
@@ -515,12 +516,12 @@ function jobView(id){
   const j=jobs.find(x=>x.id===id);
   if(!j){$('#v-job').innerHTML='<section><h2>Project not found</h2><p><a href="#jobs">Back to all projects</a></p></section>';return}
   const T=TRADES[A.trade];
-  const why=!j.c1?'Public or institutional: goes to public bid.':!j.c2?'Under 5,000 sq ft and under 5 units.':!j.c3?(j.estSq?`About ${fmtN(j.area)} sq ft estimated from ${j.units} units, over 250,000: a regional GC job.`:'Over 250,000 sq ft: a regional GC job.'):!j.c4?`Filed ${j.age} days ago, outside the last ${A.days} days.`:'';
+  const why=!j.c1?'Public or institutional: goes to public bid.':!j.c2?'Under 5,000 sq ft and under 5 units.':!j.c3?(j.noArea?`${j.units} units with no floor area stated; over ${MAX_UNITS} units is treated as a regional GC job.`:'Over 250,000 sq ft: a regional GC job.'):!j.c4?`Filed ${j.age} days ago, outside the last ${A.days} days.`:'';
   const same=jobs.filter(x=>x.town===j.town&&x!==j&&x.c4);
   $('#v-job').innerHTML=`<section>
     <div class="eyebrow"><a href="#call-list">Call list</a> / ${esc(j.town)} / ${esc(j.id)}</div>
     <div class="job-hero"><div><h2>${esc(j.name)}</h2><div class="sub" style="margin:-4px 0 8px">${esc(j.addr)} · <b style="color:var(--ink)">Filed ${fdate(j.date)}</b> (${ago(j)})${newPill(j)}</div><div>${kindPill(j)} ${j.c4?`<span class="chip">Call list · score ${j.score}</span>`:`<span class="chip">Not on the call list. ${esc(why)}</span>`}</div></div>
-    <div style="text-align:right"><div class="eyebrow">Est. ${esc(tname(A.trade))}</div><div class="big" style="font-size:64px">${fmt$(j.tv)}</div><div class="sub">${j.estSq?`of ${fmt$(j.value)} hard cost: ${j.units} units × ${fmtN(SQFT_PER_UNIT)} sq ft (no floor area in the referral) at $${A.psf}/sq ft`:j.sqfa?`of ${fmt$(j.value)} hard cost at $${A.psf}/sq ft`:`from ${fmtN(j.sqd)} sq ft of disturbance`}</div></div></div>
+    <div style="text-align:right"><div class="eyebrow">Est. ${esc(tname(A.trade))}</div><div class="big" style="font-size:64px">${est$(j.tv)}</div><div class="sub">${j.noArea&&!j.tv?`The referral gives ${j.units} units but no floor area, so there is no dollar estimate`:j.sqfa?`of ${fmt$(j.value)} hard cost at $${A.psf}/sq ft`:`from ${fmtN(j.sqd)} sq ft of disturbance`}</div></div></div>
   </section>
   <div class="panel pad" style="margin-bottom:20px">
     <h3>Where it stands</h3>
@@ -537,7 +538,7 @@ function jobView(id){
         <dt>Approvals sought</dt><dd>${esc(j.action)}</dd>
         <dt>Use</dt><dd>${esc(j.use)}</dd>
         <dt>Description (as filed)</dt><dd>${esc(j.desc)}</dd>${j.zone?`<dt>Zoning district</dt><dd>${esc(j.zone)}</dd>`:''}
-        <dt>Floor area</dt><dd>${j.sqfa?fmtN(j.sqfa)+' sq ft':j.estSq?`Not stated <span class="sub">(estimated ~${fmtN(j.area)} sq ft from ${j.units} units)</span>`:'Not stated'}</dd>
+        <dt>Floor area</dt><dd>${j.sqfa?fmtN(j.sqfa)+' sq ft':'Not stated'}</dd>
         <dt>Land disturbance</dt><dd>${j.sqd?fmtN(j.sqd)+' sq ft':'Not stated'}</dd>
         <dt>Stories</dt><dd>${j.stories||'Not stated'}</dd>
         <dt>Housing units</dt><dd>${j.units?j.units+(j.affh?` (${j.affh} affordable)`:''):'None'}</dd>
@@ -547,7 +548,7 @@ function jobView(id){
       </dl>
     </div>
     <div style="display:grid;gap:20px">
-      <div class="panel pad"><h3>Every trade on this job</h3><table class="mini"><tbody>${Object.entries(TRADES).map(([k,t])=>{const v=k==='site'?Math.max(j.value*t.s,j.sqd*12):j.value*t.s;return `<tr${k===A.trade?' style="color:var(--accent)"':''}><td>${t.n}</td><td class="num">${fmt$(v)}</td></tr>`}).join('')}</tbody></table><p class="note">Rule-of-thumb shares of hard cost. What each trade gets is spelled out below.</p></div>
+      <div class="panel pad"><h3>Every trade on this job</h3><table class="mini"><tbody>${Object.entries(TRADES).map(([k,t])=>{const v=k==='site'?Math.max(j.value*t.s,j.sqd*12):j.value*t.s;return `<tr${k===A.trade?' style="color:var(--accent)"':''}><td>${t.n}</td><td class="num">${est$(v)}</td></tr>`}).join('')}</tbody></table><p class="note">Rule-of-thumb shares of hard cost. What each trade gets is spelled out below.</p></div>
       ${same.length?`<div class="panel pad"><h3>Also on the list in ${esc(j.town)}</h3>${same.map(s=>`<a class="chip" href="#job-${s.id}">${esc(s.name)}</a>`).join('')}<p class="note">Same planner, one call.</p></div>`:''}
     </div>
   </div>
@@ -652,7 +653,7 @@ function init(){
   ['#f-q','#f-b','#f-s','#f-c'].forEach(s=>$(s).addEventListener('input',allJobs));
   tradebar();assumeControls();
   const cv=$('#map');
-  cv.addEventListener('mousemove',e=>{const h=hitAt(e);cv.style.cursor=h?'pointer':'crosshair';$('#map-hint').textContent=h?`${h.j.name}, ${h.j.town} · ${h.j.area?(h.j.estSq?'~':'')+fmtN(h.j.area)+' sq ft':'site work'} · ${h.j.kind.t}`:'Bar height is floor area. Click a bar to open the project.'});
+  cv.addEventListener('mousemove',e=>{const h=hitAt(e);cv.style.cursor=h?'pointer':'crosshair';$('#map-hint').textContent=h?`${h.j.name}, ${h.j.town} · ${h.j.sqfa?fmtN(h.j.sqfa)+' sq ft':h.j.noArea?h.j.units+' units, no floor area stated':'site work'} · ${h.j.kind.t}`:'Bar height is floor area. Click a bar to open the project.'});
   cv.addEventListener('click',e=>{const h=hitAt(e);if(h)location.hash='job-'+h.j.id});
   window.addEventListener('resize',()=>{if(!$('#v-home').classList.contains('hide'))drawMap()});
   window.addEventListener('hashchange',route);

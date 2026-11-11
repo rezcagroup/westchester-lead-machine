@@ -62,7 +62,7 @@
         <div class="ctl"><label for="f-q">Search</label><input type="search" id="f-q" placeholder="Project, address, description"></div>
         <div class="ctl"><label for="f-b">Town</label><select id="f-b"><option value="">All</option></select></div>
         <div class="ctl"><label for="f-s">Use</label><select id="f-s"><option value="">All</option></select></div>
-        <div class="ctl"><label for="f-c">Show</label><select id="f-c"><option value="">Everything</option><option value="1">Call list only</option></select></div>
+        <div class="ctl"><label for="f-c">Show</label><select id="f-c"><option value="">Everything</option><option value="1">Call list only</option><option value="2">No floor area stated</option></select></div>
         <div class="sub" id="f-count"></div>
       </div>
       <div class="tablewrap"><table id="alltable"></table></div>
@@ -88,8 +88,8 @@
       <h3>2 · Cut</h3>
       <ul>
         <li><b>Private work.</b> Hospitals, schools, government buildings, utilities and parks come out. They go to public bid.</li>
-        <li><b>A real building.</b> At least 5,000 sq ft of floor area or 5 housing units. Some referrals give units but no floor area; those are sized at 1,300 sq ft per unit (close to the median of the projects that report both) and marked with a ~.</li>
-        <li><b>Local-builder size.</b> Under 250,000 sq ft. The 28-story towers and the Westchester Crossing megaproject go to regional GCs.</li>
+        <li><b>A real building.</b> At least 5,000 sq ft of floor area or 5 housing units. Some referrals give units but no floor area. Those are tagged NO FLOOR AREA and get no dollar estimate rather than a guessed one.</li>
+        <li><b>Local-builder size.</b> Under 250,000 sq ft, or 200 units or fewer where no floor area is given. The 28-story towers and the Westchester Crossing megaproject go to regional GCs.</li>
         <li><b>Just filed.</b> Filed in the last 30 days by default (change it on the Call list tab), so the project is just starting its local review.</li>
       </ul>
       <h3>3 · Rank</h3>
