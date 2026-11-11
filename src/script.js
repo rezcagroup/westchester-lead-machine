@@ -36,7 +36,7 @@ const fixSp = t => String(t||'').split(' ').map(w=>KEEPWORD.test(w)?w:w.replace(
 const USES=['Agricultural','Commercial or Office','Industrial','Institutional, Governmental or other Public Facility','Mixed Use','Recreation or Conservation','Residential','Utilities, Public Infrastructure or Services'];
 const fixUse = u => USES.find(x=>x.replace(/\s/g,'')===String(u||'').replace(/\s/g,''))||u;
 Object.values(EV).forEach(e=>{e.z=fixSp(e.z);(e.cm||[]).forEach(c=>{c[1]=fixSp(c[1]);c[2]=fixSp(c[2])})});
-const SQFT_PER_UNIT = 1100; // gross sq ft per housing unit, used only when the referral gives units but no floor area
+const SQFT_PER_UNIT = 1300; // gross sq ft per housing unit, used only when the referral gives units but no floor area
 const tname = k => { const n=TRADES[k].n; return /^(GC|HVAC)/.test(n)?n:n.toLowerCase(); };
 
 const jobs = RAW.map(raw=>{

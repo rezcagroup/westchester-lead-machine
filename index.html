@@ -211,7 +211,7 @@ table.mini td{padding:6px 8px}
       <h3>2 · Cut</h3>
       <ul>
         <li><b>Private work.</b> Hospitals, schools, government buildings, utilities and parks come out. They go to public bid.</li>
-        <li><b>A real building.</b> At least 5,000 sq ft of floor area or 5 housing units. Some referrals give units but no floor area; those are sized at 1,100 sq ft per unit and marked with a ~.</li>
+        <li><b>A real building.</b> At least 5,000 sq ft of floor area or 5 housing units. Some referrals give units but no floor area; those are sized at 1,300 sq ft per unit (close to the median of the projects that report both) and marked with a ~.</li>
         <li><b>Local-builder size.</b> Under 250,000 sq ft. The 28-story towers and the Westchester Crossing megaproject go to regional GCs.</li>
         <li><b>Just filed.</b> Filed in the last 30 days by default (change it on the Call list tab), so the project is just starting its local review.</li>
       </ul>
@@ -281,7 +281,7 @@ const fixSp = t => String(t||'').split(' ').map(w=>KEEPWORD.test(w)?w:w.replace(
 const USES=['Agricultural','Commercial or Office','Industrial','Institutional, Governmental or other Public Facility','Mixed Use','Recreation or Conservation','Residential','Utilities, Public Infrastructure or Services'];
 const fixUse = u => USES.find(x=>x.replace(/\s/g,'')===String(u||'').replace(/\s/g,''))||u;
 Object.values(EV).forEach(e=>{e.z=fixSp(e.z);(e.cm||[]).forEach(c=>{c[1]=fixSp(c[1]);c[2]=fixSp(c[2])})});
-const SQFT_PER_UNIT = 1100; // gross sq ft per housing unit, used only when the referral gives units but no floor area
+const SQFT_PER_UNIT = 1300; // gross sq ft per housing unit, used only when the referral gives units but no floor area
 const tname = k => { const n=TRADES[k].n; return /^(GC|HVAC)/.test(n)?n:n.toLowerCase(); };
 
 const jobs = RAW.map(raw=>{
