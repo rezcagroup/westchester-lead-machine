@@ -1,0 +1,118 @@
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><div class="logo">NY</div><div><h1>NYC Construction Lead Machine</h1><small>Department of Buildings filings · five boroughs · <a href="index.html">Westchester →</a></small></div></div>
+    <nav class="tabs" id="tabs">
+      <a href="#home" data-v="home">Home</a>
+      <a href="#call-list" data-v="call-list">Call list</a>
+      <a href="#jobs" data-v="jobs">All filings</a>
+      <a href="#people" data-v="people">Repeat players</a>
+      <a href="#how" data-v="how">How it works</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="tradebar" id="tradebar"></div>
+  <div class="tradebar" id="borobar"></div>
+  <div class="ticker" id="ticker"></div>
+
+  <div id="v-home" class="view">
+    <section>
+      <div class="eyebrow" id="h-eyebrow"></div>
+      <h2>Private jobs just filed with the Department of Buildings, worth an estimated</h2>
+      <div class="big" id="h-big"></div>
+      <p class="lede" id="h-lede"></p>
+    </section>
+    <div class="grid2">
+      <div class="panel">
+        <div class="maphead">
+          <h3 style="margin:0">Every job, by value and location</h3>
+          <div class="legend"><span><i style="background:var(--accent)"></i>Call list</span><span><i style="background:var(--steel)"></i>Filtered out</span></div>
+        </div>
+        <canvas id="map" aria-label="Map of New York City DOB filings; bar height shows estimated value"></canvas>
+        <div class="pad note" style="padding-top:0" id="map-hint">Bar height is estimated value. Click a bar to open the project.</div>
+      </div>
+      <div class="panel funnel" id="funnel"></div>
+    </div>
+    <section><div class="tiles" id="tiles"></div></section>
+    <section style="padding-top:0">
+      <div class="panel">
+        <div class="maphead"><h3 style="margin:0">Top of the call list</h3><a href="#call-list" class="sub">Full call list →</a></div>
+        <div class="tablewrap"><table id="top5"></table></div>
+      </div>
+    </section>
+  </div>
+
+  <div id="v-call-list" class="view hide">
+    <section>
+      <div class="eyebrow" id="call-count"></div>
+      <h2>Call list</h2>
+      <p class="lede">Private jobs with real scope, sized for a local builder, ranked by score. Pick a borough at the top, then how far back to look and which stage you want. "Before a permit" is the earliest look: plans are in review and no contractor is on record.</p>
+    </section>
+    <div class="panel">
+      <div class="controls" id="assume1"></div>
+      <div class="tablewrap"><table id="calltable"></table></div>
+      <div id="callmore"></div>
+    </div>
+  </div>
+
+  <div id="v-jobs" class="view hide">
+    <section><div class="eyebrow">Every filing in the pull</div><h2>All filings</h2></section>
+    <div class="panel">
+      <div class="controls">
+        <div class="ctl"><label for="f-q">Search</label><input type="search" id="f-q" placeholder="Address, owner, architect, GC, job number"></div>
+        <div class="ctl"><label for="f-b">Borough</label><select id="f-b"><option value="">All</option></select></div>
+        <div class="ctl"><label for="f-s">Job type</label><select id="f-s"><option value="">All</option></select></div>
+        <div class="ctl"><label for="f-st">Stage</label><select id="f-st"><option value="">All</option></select></div>
+        <div class="ctl"><label for="f-c">Show</label><select id="f-c"><option value="">Everything</option><option value="1">Call list only</option></select></div>
+        <div class="sub" id="f-count"></div>
+      </div>
+      <div class="tablewrap"><table id="alltable"></table></div>
+      <div id="allmore"></div>
+    </div>
+  </div>
+
+  <div id="v-people" class="view hide">
+    <section>
+      <div class="eyebrow">One relationship, several jobs</div>
+      <h2>Repeat players</h2>
+      <p class="lede">Owners, design firms and general contractors with more than one job on the current call list. One good call here is worth several cold ones.</p>
+    </section>
+    <div class="panel" style="margin-bottom:20px"><div class="maphead"><h3 style="margin:0">Owners and developers</h3></div><div class="tablewrap"><table id="ownertable"></table></div></div>
+    <div class="panel" style="margin-bottom:20px"><div class="maphead"><h3 style="margin:0">Architects and engineers</h3></div><div class="tablewrap"><table id="protable"></table></div></div>
+    <div class="panel"><div class="maphead"><h3 style="margin:0">General contractors on permits</h3></div><div class="tablewrap"><table id="gctable"></table></div></div>
+  </div>
+
+  <div id="v-how" class="view hide">
+    <section class="prose">
+      <div class="eyebrow">Method, assumptions, sources</div>
+      <h2>How it works</h2>
+      <h3>1 · Pull</h3>
+      <p>Every construction job in the five boroughs starts as a job filing with the Department of Buildings, in the DOB NOW system. The city publishes those filings every day, with the owner, the architect or engineer, the size and a description. <span id="how-pull"></span> Follow-on filings for the same job (plumbing, sprinklers and so on) are folded into the first one.</p>
+      <p>Permits come from a second city dataset. Where a licensed general contractor holds a permit on the job, the page names them.</p>
+      <h3>2 · Cut</h3>
+      <ul>
+        <li><b>Private work.</b> City agencies, NYCHA, the School Construction Authority and other government owners come out. They go to public bid. Withdrawn filings come out too.</li>
+        <li><b>A real job.</b> At least 5,000 sq ft of work, 5 new dwelling units, or $500,000 of filed cost. Units only count where the job adds them: an office fit-out in a 300-unit tower is not a 300-unit job.</li>
+        <li><b>Local-builder size.</b> Under 250,000 sq ft and under $50M.</li>
+        <li><b>Still open.</b> Filed inside the window you pick and not yet signed off. The stage setting narrows it to jobs before a permit, or jobs with a permit.</li>
+      </ul>
+      <h3>3 · Stage</h3>
+      <p>Each job's stage comes from its live DOB status: filed, in plan review (including objections), approved, permit issued, signed off. That replaces guessing: you can see how far along a job really is.</p>
+      <h3>4 · Rank</h3>
+      <p>Score = freshness (up to 35, falling to 0 at the edge of the window) + size (up to 35, log scale of estimated value) + type of work (new building 25, new building with parts remaining 22, major alteration 15, alteration 10) + 5 for housing units.</p>
+      <h3>5 · Estimate</h3>
+      <p>Alterations carry a cost the owner filed with DOB, and the page uses it. Owners often file low, so treat it as a floor. DOB does not collect a cost on new buildings, so those use floor area × cost per sq ft (default $500, change it on the Call list tab). Each trade's slice is a rule-of-thumb share.</p>
+      <table class="mini" id="sharetable"></table>
+      <p class="note">These are rough numbers for qualifying leads, not estimates to bid from.</p>
+      <h3>6 · Who to contact</h3>
+      <p>The filing names the owner, the architect or engineer of record and the filing representative. DOB does not publish their phone numbers or emails in this data, so each name links to a search. Every project also links to the DOB building profile and the zoning map for the lot.</p>
+      <p>Source: NYC Open Data, <a href="https://data.cityofnewyork.us/d/w9ak-ipjd">DOB NOW: Build – Job Application Filings</a> and <a href="https://data.cityofnewyork.us/d/rbx6-tga4">DOB NOW: Build – Approved Permits</a>. Refresh with <code>python3 pull_nyc.py && python3 build.py</code>.</p>
+    </section>
+  </div>
+
+  <div id="v-job" class="view hide"></div>
+</main>
+
+<footer><div class="wrap">Built from public NYC Department of Buildings records on NYC Open Data. Dollar values are estimates; see How it works.</div></footer>

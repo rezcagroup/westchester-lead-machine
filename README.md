@@ -1,4 +1,11 @@
-# Westchester Construction Lead Machine
+# Construction Lead Machine: Westchester and NYC
+
+Two pages, same idea: find private construction jobs at the earliest public moment, size each trade's slice, and show who to contact.
+
+- `index.html`: Westchester County, from County Planning Board referrals (described below).
+- `nyc.html`: New York City's five boroughs, from Department of Buildings filings (see "NYC" at the end).
+
+## Westchester
 
 A single-page lead tool built from Westchester County Planning Board referrals. Every town in the county must send bigger land-use cases (site plans with 5,000+ sq ft of floor area, or 10,000+ sq ft of land disturbance) to the County Planning Board, so the referral list is a county-wide feed of new construction projects, months before a building permit.
 
@@ -46,3 +53,30 @@ python3 build.py
 ## Estimates
 
 Referrals carry no construction cost. Value = floor area x hard cost per sq ft (default $450, adjustable on the Call list tab). Each trade is a rule-of-thumb share of hard cost; site work has a floor of $12 per sq ft of disturbed land. Scope lines not stated in the filing are tagged "typical, not stated". These are for qualifying leads, not for bidding.
+
+## NYC
+
+`nyc.html` is built from two NYC Open Data datasets (Socrata API, no key needed):
+
+- `w9ak-ipjd` DOB NOW: Build – Job Application Filings: the lead. Owner, architect or engineer, filing representative, size, units, filed cost, description, live status.
+- `rbx6-tga4` DOB NOW: Build – Approved Permits: names the general contractor once one holds a permit.
+
+Refresh (needs network access to `data.cityofnewyork.us`):
+
+```
+python3 pull_nyc.py        # last 180 days; pass a number for a different window
+python3 build.py
+```
+
+`pull_nyc.py` keeps initial filings (`-I1`) for New Building and Alteration-CO jobs, plus plain Alterations with a filed cost of $500,000 or more, and writes `data/nyc.json`. Set `NYC_APP_TOKEN` to avoid rate limits. The page computes "days ago" from the real date and warns when the pull is more than 3 days old.
+
+How the NYC page differs from Westchester:
+
+- **Stage is real.** Filed, in plan review, approved, permit issued, signed off, from the DOB status.
+- **The owner is in the record.** Touch 1 goes to the owner; Touch 2 goes to the architect or engineer, or to the GC if one is on a permit.
+- **Value.** Alterations use the cost filed with DOB (often understated). New buildings have no filed cost, so they use floor area x cost per sq ft (default $500).
+- **Units.** A plain alteration reports the whole building's units, so only units a job adds are counted.
+- **Cuts.** Private owner and not withdrawn; 5,000+ sq ft, 5+ new units or $500K+ filed cost; under 250,000 sq ft and $50M; filed in the chosen window and not signed off. Borough and stage filters sit on top.
+- **Repeat players tab.** Owners, design firms and GCs with more than one job on the call list.
+
+Source files: `src/nyc_body.html`, `src/nyc_script.js` (placeholder `__NYC__`); head and styles are shared with Westchester.
