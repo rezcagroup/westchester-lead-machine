@@ -61,7 +61,7 @@ There is no automated lookup: citysquared.com blocks automated browsers, so perm
 
 ## Automatic refresh
 
-`.github/workflows/refresh-westchester.yml` runs every morning at 11:17 UTC (and on demand from the Actions tab). It runs `pull_westchester.py`, then `build.py`, and commits any changed data and `index.html`. GitHub only runs scheduled workflows from the default branch, so this starts once it is merged.
+`.github/workflows/refresh-westchester.yml` runs every morning at 11:17 UTC (and on demand from the Actions tab). It runs `pull_westchester.py`, then `build.py`, commits any changed data and `index.html`, and asks GitHub Pages to republish, so https://rezcagroup.github.io/westchester-lead-machine/ updates on its own. GitHub only runs scheduled workflows from the default branch, so this starts once it is merged.
 
 ## Estimates
 
