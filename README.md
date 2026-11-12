@@ -55,19 +55,13 @@ This runs on its own every morning (see "Automatic refresh" below). `pull_westch
 
 ## Town permit records
 
-Seven municipalities (New Rochelle, North Castle, White Plains, Lewisboro, Mount Kisco, Dobbs Ferry, Bronxville) show each property's permit applications, permits and certificates of occupancy on their public CitySquared page. `pull_permits.js` opens that page in a headless browser, searches each referral's address, opens the matching parcel and keeps the town records filed from two years before the county letter on. It writes `data/permits.json`, keyed by county file id.
+Seven municipalities (New Rochelle, North Castle, White Plains, Lewisboro, Mount Kisco, Dobbs Ferry, Bronxville) show each property's permit applications, permits and certificates of occupancy on their public CitySquared page. Project pages in those towns link to CitySquared with the address to search.
 
-```
-npm install playwright && npx playwright install chromium    # once
-node pull_permits.js        # re-checks referrals last checked 6+ days ago; pass a number to change that
-python3 build.py
-```
-
-Only referral addresses are looked up, one at a time with a pause. If a re-check fails, the last good result is kept. On the page, a referral gets a stage tag (APPLIED TO TOWN, PERMIT ISSUED, CO ISSUED), a "Town permit record" table, and the town's applicant name when the county record has none. Survey of which towns publish what: `docs/westchester-permit-survey.md`.
+There is no automated lookup: citysquared.com blocks automated browsers, so permits are checked by hand. The page can still show permit data if `data/permits.json` is filled from an approved source (for example, a data export from a town or from Municity). The format is described at the top of the permit code in `src/script.js`. Each project then gets a stage tag (APPLIED TO TOWN, PERMIT ISSUED, CO ISSUED), a "Town permit record" table, and the town's applicant name. Survey of which towns publish what: `docs/westchester-permit-survey.md`.
 
 ## Automatic refresh
 
-`.github/workflows/refresh-westchester.yml` runs every morning at 11:17 UTC (and on demand from the Actions tab). It runs `pull_westchester.py`, then `pull_permits.js`, then `build.py`, and commits any changed data and `index.html`. A permit lookup failure does not stop the referral refresh. GitHub only runs scheduled workflows from the default branch, so this starts once it is merged.
+`.github/workflows/refresh-westchester.yml` runs every morning at 11:17 UTC (and on demand from the Actions tab). It runs `pull_westchester.py`, then `build.py`, and commits any changed data and `index.html`. GitHub only runs scheduled workflows from the default branch, so this starts once it is merged.
 
 ## Estimates
 

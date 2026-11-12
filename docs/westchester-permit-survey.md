@@ -58,11 +58,11 @@ The site at `citysquared.com/#/app/map/<Tenant>` loads a single-page app that ca
 
 The list of tenants is public at `municity5.com/M5Services/M5Service.svc/Service/3018/Tenants`. Tenant names: NewRochelleCityNY, NorthCastleTownNY, WhitePlains, LewisboroTownNY, MountKiscoVillageNY, DobbsFerryVillageNY, BronxvilleVillageNY, Yonkers, YorktownTownNY, OssiningVillageNY, MamaroneckVillageNY, BedfordTownNY, RyeCity, ScarsdaleVillageNY, PelhamVillage.
 
-Before scripting this: check Municity's terms of use, look up only referral addresses (about 100 a year), and go slowly. The towns choose which fields are public, and some (Yonkers, Yorktown) show none.
+**Update:** citysquared.com sits behind a security service that blocks automated browsers. The lookups in this survey only worked because the test scripts presented themselves as a normal browser, which is not a fair basis for a scheduled job. Automated lookups therefore need permission or a data feed from Municity or the towns. Until then, the page links each referral in these towns to CitySquared for a manual check. The towns choose which fields are public, and some (Yonkers, Yorktown) show none.
 
 ## Recommended next steps
 
-1. **Municity permit lookup** for the 7 public towns: match each referral to its parcel, then pull applications, permits and certificates of occupancy. This adds a real stage (applied, issued, CO) and often an architect and dollar value.
+1. **Municity permit data** for the 7 public towns: ask Municity or the towns for an export or permission for automated access. The page already accepts the data (`data/permits.json`).
 2. **Port Chester.** Decide whether a free Accela account is acceptable for scripted lookups.
 3. **Greenburgh Active Applications pages and the agenda platforms** (AgendaCenter, CivicClerk, Granicus, AgendaQuick, eCode360). These are where developer, architect and engineer names can be extracted from minutes.
 4. **Yonkers.** Permits are not public, so use the Yonkers IDA packets and planning board minutes. A standing records (FOIL) request for the monthly permit log is the fallback.

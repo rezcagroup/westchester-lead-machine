@@ -1,7 +1,6 @@
 name: Refresh Westchester data
 
-# Pulls the county referrals and the town permit records, rebuilds index.html and commits any change.
-# Runs every morning; the permit lookup only re-checks a referral once its last check is 6+ days old.
+# Pulls the county referrals, rebuilds index.html and commits any change. Runs every morning.
 on:
   schedule:
     - cron: "17 11 * * *" # 11:17 UTC, about 6 am in New York
@@ -17,7 +16,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -25,22 +24,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
-      - name: Install Playwright and Chromium
-        run: |
-          npm install --no-save --no-package-lock playwright@1.63.0
-          npx playwright install --with-deps chromium
-
       - name: Pull county referrals
         run: python3 pull_westchester.py
-
-      - name: Look up town permit records
-        # A CitySquared outage should not stop the referral refresh; the last good results are kept.
-        continue-on-error: true
-        run: node pull_permits.js
 
       - name: Build pages
         run: python3 build.py
@@ -49,7 +34,7 @@ jobs:
         run: |
           git config user.name "westchester-refresh[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/data.json data/ev.json data/att.json data/permits.json src/script.js index.html
+          git add data/data.json data/ev.json data/att.json src/script.js index.html
           if git diff --cached --quiet; then
             echo "No changes."
           else
