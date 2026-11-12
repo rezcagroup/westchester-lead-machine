@@ -44,11 +44,14 @@ data/
 Source: Westchester County Department of Planning, Planning and Zoning Referrals
 (`Westchester_County_Referrals_2_view` ArcGIS feature service; layer 0 = referrals, table 2 = county comments).
 
-The feed is pulled for the last 12 months of county letter dates, keeping site plans, subdivisions, special permits and use variances with real scope. After replacing the files in `data/`, update `PULLED` and `TODAY` at the top of `src/script.js`, then run:
+Refresh (needs network access to `services.arcgis.com`, no key):
 
 ```
+python3 pull_westchester.py        # last 365 days; pass a number for a different window
 python3 build.py
 ```
+
+`pull_westchester.py` keeps site plans, subdivisions, special permits and use variances that state some scope (floor area, land disturbance, housing units or commercial floor area). It writes `data/data.json`, `data/ev.json` and `data/att.json`, and stamps `PULLED` and `TODAY` in `src/script.js`. `team.json` and `contacts.json` are hand-researched and left alone; the script lists any municipality that has referrals but no entry in `contacts.json`.
 
 ## Estimates
 
