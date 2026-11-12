@@ -1,4 +1,5 @@
-# Pulls fresh NYC DOB data every morning, rebuilds the pages and publishes them with GitHub Pages.
+# Pulls fresh NYC DOB filings and Westchester County referrals every morning, rebuilds both pages
+# and publishes them with GitHub Pages.
 # Needs: this file on the default branch, and Settings -> Pages -> Source set to "GitHub Actions".
 # Nothing is committed back to the repo; the refreshed pages only go to the published site.
 name: Refresh and publish
@@ -34,6 +35,10 @@ jobs:
         env:
           NYC_APP_TOKEN: ${{ secrets.NYC_APP_TOKEN }}
         run: python3 pull_nyc.py
+      - name: Pull Westchester County referrals
+        # If the county service is down, publish with the Westchester data already in the repo.
+        continue-on-error: true
+        run: python3 pull_westchester.py
       - name: Build pages
         run: |
           python3 build.py

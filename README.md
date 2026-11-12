@@ -51,7 +51,7 @@ python3 pull_westchester.py        # last 365 days; pass a number for a differen
 python3 build.py
 ```
 
-This runs on its own every morning (see "Automatic refresh" below). `pull_westchester.py` keeps site plans, subdivisions, special permits and use variances that state some scope (floor area, land disturbance, housing units or commercial floor area). It writes `data/data.json`, `data/ev.json` and `data/att.json`, and stamps `PULLED` and `TODAY` in `src/script.js`. `team.json` and `contacts.json` are hand-researched and left alone; the script lists any municipality that has referrals but no entry in `contacts.json`.
+The published site is refreshed every morning without this (see "Automatic refresh" below). `pull_westchester.py` keeps site plans, subdivisions, special permits and use variances that state some scope (floor area, land disturbance, housing units or commercial floor area). It writes `data/data.json`, `data/ev.json` and `data/att.json`, and stamps `PULLED` and `TODAY` in `src/script.js`. `team.json` and `contacts.json` are hand-researched and left alone; the script lists any municipality that has referrals but no entry in `contacts.json`.
 
 ## Town permit records
 
@@ -61,7 +61,7 @@ There is no automated lookup: citysquared.com blocks automated browsers, so perm
 
 ## Automatic refresh
 
-`.github/workflows/refresh-westchester.yml` runs every morning at 11:17 UTC (and on demand from the Actions tab). It runs `pull_westchester.py`, then `build.py`, commits any changed data and `index.html`, and asks GitHub Pages to republish, so https://rezcagroup.github.io/westchester-lead-machine/ updates on its own. GitHub only runs scheduled workflows from the default branch, so this starts once it is merged.
+`.github/workflows/refresh.yml` runs every morning at 10:17 UTC (about 5 to 6 am New York), on every push to `main`, and on demand from the Actions tab. It pulls fresh NYC filings (`pull_nyc.py`) and Westchester referrals (`pull_westchester.py`), rebuilds both pages and publishes them to GitHub Pages at https://rezcagroup.github.io/westchester-lead-machine/. Nothing is committed back; the fresh data goes only to the published site. If the county service is down, the Westchester page is published from the data already in the repo. Running the pull scripts by hand and committing is only needed to update the copies in the repo.
 
 ## Estimates
 
