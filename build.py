@@ -6,7 +6,8 @@ R = Path(__file__).parent
 def page(out, title, body, script, data):
     js = (R/"src"/script).read_text()
     for key, f in data:
-        js = js.replace(key, (R/"data"/f).read_text().replace("</", "<\\/"))
+        src = R/"data"/f
+        js = js.replace(key, (src.read_text() if src.exists() else "{}").replace("</", "<\\/"))
     head = (R/"src/head.html").read_text().replace("Westchester Construction Lead Machine", title)
     html = head + (R/"src/css.txt").read_text() + "\n</head>\n" + (R/"src"/body).read_text() + "<script>\n" + js + "</script>\n</body>\n</html>\n"
     (R/out).write_text(html)
@@ -14,5 +15,5 @@ def page(out, title, body, script, data):
 
 
 page("index.html", "Westchester Construction Lead Machine", "body.html", "script.js",
-     [("__DATA__", "data.json"), ("__CONTACTS__", "contacts.json"), ("__ATT__", "att.json"), ("__TEAM__", "team.json"), ("__EV__", "ev.json")])
+     [("__DATA__", "data.json"), ("__CONTACTS__", "contacts.json"), ("__ATT__", "att.json"), ("__TEAM__", "team.json"), ("__EV__", "ev.json"), ("__PERMITS__", "permits.json")])
 page("nyc.html", "NYC Construction Lead Machine", "nyc_body.html", "nyc_script.js", [("__NYC__", "nyc.json")])

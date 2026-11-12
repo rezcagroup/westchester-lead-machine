@@ -3,6 +3,7 @@ const CONTACTS = __CONTACTS__;
 const ATT = __ATT__;
 const TEAM = __TEAM__;
 const EV = __EV__;
+const PERMITS = __PERMITS__;
 const FS = "https://services.arcgis.com/XKEHpOulfycN9cGC/arcgis/rest/services/Westchester_County_Referrals_2_view/FeatureServer/0/";
 const DASH = "https://experience.arcgis.com/experience/e5fa3d5d5b80476396a3f68eaf606db2/";
 const gsearch = q => "https://www.google.com/search?q="+encodeURIComponent(q);
@@ -79,9 +80,18 @@ function linksOf(j){
   L.push({t:'County referral dashboard',s:'Look up file '+j.id+' on the county map',u:DASH});
   return L;
 }
+// Town permit records, if data/permits.json is filled from an approved source: {id:{t:tenant,c:checked,s:'ok',p:parcel,a:address,r:[[kind,number,date,type,status,description,applicant,cost]]}}.
+// kind A = application, P = permit, C = certificate of occupancy.
+const RECKIND={A:'Application',P:'Permit',C:'Certificate'};
+const CSQ={'New Rochelle':'NewRochelleCityNY','North Castle':'NorthCastleTownNY','White Plains':'WhitePlains','Lewisboro':'LewisboroTownNY','Mount Kisco':'MountKiscoVillageNY','Dobbs Ferry':'DobbsFerryVillageNY','Bronxville':'BronxvilleVillageNY'}; // towns whose CitySquared page shows permits publicly
+function townRec(j){const p=PERMITS[j.id];return p&&p.s==='ok'?p:null}
+function stageOf(j){const p=townRec(j);if(!p)return null;const has=k=>p.r.some(r=>r[0]===k);
+  return has('C')?{t:'CO issued',c:'wait'}:has('P')?{t:'Permit issued',c:'go'}:has('A')?{t:'Applied to town',c:'rev'}:{t:'No town filing yet',c:''}}
+function stagePill(j){const st=stageOf(j);return st&&st.c?`<span class="pill p-${st.c}" style="margin-left:6px">${esc(st.t.toUpperCase())}</span>`:''}
+function townApplicant(j){const p=townRec(j);const r=p&&p.r.find(r=>r[6]);return r?r[6]:''}
 function teamText(j){const t=TEAM[j.id];return t?t.people.map(p=>p[0]+': '+p[1]+(p[2]?' ('+p[2]+')':'')).join('; '):''}
-function sheetRow(j){const C=contactOf(j);const l=linksOf(j)[0];return [j.date,j.name,j.town,j.addr,j.sqfa||'',j.units||'',j.kind.t,j.desc,teamText(j),j.rec||'',j.recTitle||'',C.email||'',C.plan||'',C.bld||'',l.u].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')}
-function sheet(list){return ['Filed,Project,Town,Address,Sq ft,Units,Type,Filing description,Team on file,Planning contact,Title,Email,Planning phone,Building dept phone,Filing link'].concat(list.map(sheetRow)).join('\n')}
+function sheetRow(j){const C=contactOf(j);const l=linksOf(j)[0];return [j.date,j.name,j.town,j.addr,j.sqfa||'',j.units||'',j.kind.t,(stageOf(j)||{}).t||'',j.desc,teamText(j)||townApplicant(j),j.rec||'',j.recTitle||'',C.email||'',C.plan||'',C.bld||'',l.u].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')}
+function sheet(list){return ['Filed,Project,Town,Address,Sq ft,Units,Type,Town permit stage,Filing description,Team on file,Planning contact,Title,Email,Planning phone,Building dept phone,Filing link'].concat(list.map(sheetRow)).join('\n')}
 
 
 const BOILER=/^(CPBP|Recycle|TDM|AFFO|UNIVERSAL|AIR|ZONE|Disp|Oth)$/;
@@ -232,7 +242,7 @@ function home(){
 }
 function head(rank){return `<thead><tr>${rank?'<th>#</th>':''}<th>Filed</th><th>Project</th><th>Type of work</th><th class="num">Sq ft</th><th class="num">Units</th><th class="num">Est. ${esc(tname(A.trade))}</th><th class="num">Score</th></tr></thead>`}
 function row(j,rank){
-  return `<tr class="row" data-id="${j.id}">${rank!==undefined?`<td class="rank">${rank}</td>`:''}<td class="num" style="text-align:left;white-space:nowrap">${fdate(j.date)}<div class="sub">${ago(j)}</div></td><td><div class="addr">${esc(j.name)}${newPill(j)}${j.noArea?'<span class="pill p-wait" style="margin-left:6px">NO FLOOR AREA</span>':''}${TEAM[j.id]&&TEAM[j.id].people.length?'<span class="pill p-rev" style="margin-left:6px">TEAM FOUND</span>':''}</div><div class="sub">${esc(j.town)} · ${esc(j.use)}</div><div class="sub" style="max-width:52ch;margin-top:2px">${esc(j.desc.length>150?j.desc.slice(0,150).replace(/\s+\S*$/,'')+'…':j.desc)}</div></td><td>${kindPill(j)}</td><td class="num">${j.sqfa?fmtN(j.sqfa):'·'}</td><td class="num">${j.units||'·'}</td><td class="num">${est$(j.tv)}</td><td class="num">${j.score||'·'}</td></tr>`;
+  return `<tr class="row" data-id="${j.id}">${rank!==undefined?`<td class="rank">${rank}</td>`:''}<td class="num" style="text-align:left;white-space:nowrap">${fdate(j.date)}<div class="sub">${ago(j)}</div></td><td><div class="addr">${esc(j.name)}${newPill(j)}${j.noArea?'<span class="pill p-wait" style="margin-left:6px">NO FLOOR AREA</span>':''}${TEAM[j.id]&&TEAM[j.id].people.length?'<span class="pill p-rev" style="margin-left:6px">TEAM FOUND</span>':''}${stagePill(j)}</div><div class="sub">${esc(j.town)} · ${esc(j.use)}</div><div class="sub" style="max-width:52ch;margin-top:2px">${esc(j.desc.length>150?j.desc.slice(0,150).replace(/\s+\S*$/,'')+'…':j.desc)}</div></td><td>${kindPill(j)}</td><td class="num">${j.sqfa?fmtN(j.sqfa):'·'}</td><td class="num">${j.units||'·'}</td><td class="num">${est$(j.tv)}</td><td class="num">${j.score||'·'}</td></tr>`;
 }
 function bind(sel){document.querySelectorAll(sel+' tr.row').forEach(tr=>tr.onclick=()=>{location.hash='job-'+tr.dataset.id})}
 function assumeControls(){
@@ -313,6 +323,14 @@ function jobView(id){
     <div class="cards" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">${(()=>{const N=tradeNeeds(j);const keys=[A.trade,...Object.keys(TRADES).filter(k=>k!==A.trade)];return keys.map(k=>{const v=k==='site'?Math.max(j.value*TRADES[k].s,j.sqd*12):j.value*TRADES[k].s;return `<div class="card" style="${k===A.trade?'border-color:var(--accent)':''}"><b style="display:flex;justify-content:space-between;gap:8px"><span${k===A.trade?' style="color:var(--accent)"':''}>${TRADES[k].n}</span><span class="sub" style="font-family:var(--mono)">${v?'~'+fmt$(v):''}</span></b>${(()=>{const E=evidence(j,k);return E.length?`<div style="margin:8px 0 6px;font-size:12.5px"><div class="eyebrow" style="margin-bottom:4px">The filing says</div>${E.map(e=>`<div style="border-left:2px solid var(--accent);padding:2px 0 2px 8px;margin-bottom:6px;color:var(--ink)">&ldquo;${esc(e.q)}&rdquo;<div class="sub" style="font-size:11px">${esc(e.src)}</div></div>`).join('')}</div>`:`<div class="sub" style="margin:8px 0 6px;font-size:12px">The filing doesn't mention this trade directly. Scope below is from the project's size and type.</div>`})()}<div class="eyebrow" style="margin:8px 0 2px">What that means for you</div><ul style="margin:4px 0 0;padding-left:18px;font-size:13px;color:var(--mute)">${N[k].map(x=>`<li style="margin-bottom:4px">${esc(x)}${TYPICAL.test(x)?' <span class="chip" style="font-size:10px">typical, not stated</span>':''}</li>`).join('')}</ul></div>`}).join('')})()}</div>
   </div></section>
   ${j.cm.length?`<section style="padding-bottom:0"><div class="panel pad"><h3>County's review of the submitted plans</h3><p class="note" style="margin-top:-4px">Written by the County Planning Board after reviewing what the applicant filed. ${j.cm.length} comments.</p><div class="cards" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">${j.cm.map(c=>`<div class="card"><b>${esc(c[1]||c[0])}</b><span>${esc(c[2])}${c[2].length>=270?'…':''}</span></div>`).join('')}</div></div></section>`:''}
+  ${(()=>{const p=PERMITS[j.id];const site='https://www.citysquared.com/#/app/map/'+((p&&p.t)||CSQ[j.town]||'');
+    if(!p)return CSQ[j.town]?`<section style="padding-bottom:0"><div class="panel pad"><h3>Town permit record</h3><p class="note">${esc(j.town)} shows each property's permit applications, permits and certificates of occupancy on CitySquared, no login needed. <a href="${site}" target="_blank" rel="noopener">Open CitySquared ↗</a> and search <b>${esc(j.addr.split(',')[0])}</b> to see whether this project has reached the building department, and who applied.</p></div></section>`:'';
+    if(p.s!=='ok')return `<section style="padding-bottom:0"><div class="panel pad"><h3>Town permit record</h3><p class="note">${esc(j.town)} publishes permits on CitySquared, but this referral could not be matched: ${esc(p.s)} (checked ${fdate(p.c)}). <a href="${site}" target="_blank" rel="noopener">Search CitySquared ↗</a></p></div></section>`;
+    const st=stageOf(j);
+    return `<section style="padding-bottom:0"><div class="panel pad"><h3>Town permit record${st?` <span class="pill${st.c?' p-'+st.c:''}" style="margin-left:6px">${esc(st.t.toUpperCase())}</span>`:''}</h3>
+    <p class="note" style="margin-top:-4px">From ${esc(j.town)}&rsquo;s public property page on CitySquared, parcel ${esc(p.p)} (${esc(p.a)}). Filings from two years before the county letter on. Checked ${fdate(p.c)}. <a href="${site}" target="_blank" rel="noopener">Open CitySquared ↗</a> and search the address for the full history.</p>
+    ${p.r.length?`<table class="mini"><thead><tr><th>Kind</th><th>Date</th><th>Number</th><th>Type / status</th><th>Description</th><th>Applicant</th><th class="num">Cost</th></tr></thead><tbody>${p.r.map(r=>`<tr><td>${RECKIND[r[0]]}</td><td style="white-space:nowrap">${r[2]?fdate(r[2]):''}</td><td>${esc(r[1])}</td><td>${esc(r[3])}${r[4]?'<div class="sub">'+esc(r[4])+'</div>':''}</td><td>${esc(r[5])}</td><td>${esc(r[6])}</td><td class="num">${r[7]?fmt$(r[7]):''}</td></tr>`).join('')}</tbody></table>`:'<p class="note">No town applications, permits or certificates on this parcel in that window. The project has not reached the building department yet.</p>'}
+  </div></section>`})()}
   ${TEAM[j.id]?`<section style="padding-bottom:0"><div class="panel pad" style="border-color:var(--accent)">
     <h3>Who's on the project</h3>
     ${TEAM[j.id].people.length?`<div class="cards">${TEAM[j.id].people.map(p=>`<a class="card" href="${gsearch(p[1]+' '+(p[0].includes('Owner')||p[0].includes('Developer')?'developer':p[0])+' NY')}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><span>${esc(p[0])}</span><b>${esc(p[1])} ↗</b>${p[2]?`<span>${esc(p[2])}</span>`:''}</a>`).join('')}</div>`:''}
@@ -333,7 +351,7 @@ function jobView(id){
           <dt>Planning phone</dt><dd>${esc(contactOf(j).plan||'Ask the building department to transfer you')}</dd>
           <dt>Building dept</dt><dd>${esc(contactOf(j).bld||'Not listed')}</dd>
           <dt>Office</dt><dd>${esc(j.recAgency||j.town)}</dd>
-          <dt>Applicant</dt><dd>${TEAM[j.id]&&TEAM[j.id].people.length?esc(TEAM[j.id].people[0][1]):''}<span class="sub">${TEAM[j.id]&&TEAM[j.id].people.length?' (see team above)':'Not in the county record.'} ${TEAM[j.id]&&TEAM[j.id].people.length?'':' Ask the planner (Touch 1) or open the town&rsquo;s agenda: the applicant, engineer and architect are listed there.'}</span></dd>
+          <dt>Applicant</dt><dd>${TEAM[j.id]&&TEAM[j.id].people.length?esc(TEAM[j.id].people[0][1]):esc(townApplicant(j))}<span class="sub">${TEAM[j.id]&&TEAM[j.id].people.length?' (see team above)':townApplicant(j)?' (from the town permit record above)':'Not in the county record.'} ${TEAM[j.id]&&TEAM[j.id].people.length?'':' Ask the planner (Touch 1) or open the town&rsquo;s agenda: the applicant, engineer and architect are listed there.'}</span></dd>
         </dl>
       </div>
     </div>

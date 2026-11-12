@@ -44,11 +44,24 @@ data/
 Source: Westchester County Department of Planning, Planning and Zoning Referrals
 (`Westchester_County_Referrals_2_view` ArcGIS feature service; layer 0 = referrals, table 2 = county comments).
 
-The feed is pulled for the last 12 months of county letter dates, keeping site plans, subdivisions, special permits and use variances with real scope. After replacing the files in `data/`, update `PULLED` and `TODAY` at the top of `src/script.js`, then run:
+Refresh (needs network access to `services.arcgis.com`, no key):
 
 ```
+python3 pull_westchester.py        # last 365 days; pass a number for a different window
 python3 build.py
 ```
+
+This runs on its own every morning (see "Automatic refresh" below). `pull_westchester.py` keeps site plans, subdivisions, special permits and use variances that state some scope (floor area, land disturbance, housing units or commercial floor area). It writes `data/data.json`, `data/ev.json` and `data/att.json`, and stamps `PULLED` and `TODAY` in `src/script.js`. `team.json` and `contacts.json` are hand-researched and left alone; the script lists any municipality that has referrals but no entry in `contacts.json`.
+
+## Town permit records
+
+Seven municipalities (New Rochelle, North Castle, White Plains, Lewisboro, Mount Kisco, Dobbs Ferry, Bronxville) show each property's permit applications, permits and certificates of occupancy on their public CitySquared page. Project pages in those towns link to CitySquared with the address to search.
+
+There is no automated lookup: citysquared.com blocks automated browsers, so permits are checked by hand. The page can still show permit data if `data/permits.json` is filled from an approved source (for example, a data export from a town or from Municity). The format is described at the top of the permit code in `src/script.js`. Each project then gets a stage tag (APPLIED TO TOWN, PERMIT ISSUED, CO ISSUED), a "Town permit record" table, and the town's applicant name. Survey of which towns publish what: `docs/westchester-permit-survey.md`.
+
+## Automatic refresh
+
+`.github/workflows/refresh-westchester.yml` runs every morning at 11:17 UTC (and on demand from the Actions tab). It runs `pull_westchester.py`, then `build.py`, commits any changed data and `index.html`, and asks GitHub Pages to republish, so https://rezcagroup.github.io/westchester-lead-machine/ updates on its own. GitHub only runs scheduled workflows from the default branch, so this starts once it is merged.
 
 ## Estimates
 
