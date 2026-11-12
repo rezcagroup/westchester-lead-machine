@@ -102,3 +102,7 @@ Source files: `src/nyc_body.html`, `src/nyc_script.js` (placeholder `__NYC__`); 
 ### Daily refresh and hosting
 
 `.github/workflows/refresh.yml` pulls the NYC data every morning, rebuilds both pages and publishes them with GitHub Pages. It runs once the file is on `main` and Settings -> Pages -> Source is set to "GitHub Actions". A Pages site is public. Nothing is committed back to the repo, so `data/nyc.json` and `nyc.html` in git are only as fresh as the last manual pull.
+
+## Approval guide
+
+`docs/how-projects-get-approved.pdf` is a 10-page flowchart of how a private project gets approved and built, Westchester on pages 1-5 and NYC on pages 6-10. It was last checked against the law in November 2026. The source is `docs/how-projects-get-approved.html`: edit the `PAGES` list in the script near the top of that file, then run `node docs/print_pdf.cjs` (needs Playwright) to reprint the PDF.
