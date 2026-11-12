@@ -7,7 +7,7 @@ Sources (Socrata API, no key needed; set NYC_APP_TOKEN to avoid rate limits):
   rbx6-tga4  DOB NOW: Build - Approved Permits
   t8hj-ruu2  DOB License Info (business phone and email for licensed GCs and filing representatives)
 """
-import json, os, sys, datetime, urllib.parse, urllib.request
+import json, os, sys, time, datetime, urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
 R = Path(__file__).parent
@@ -20,6 +20,22 @@ FLAGS = ["foundation_work_type_", "structural_work_type_", "earth_work_work_type
          "standpipe", "solar_work_type_", "green_roof_work_type_", "full_demolition_work_type_", "general_construction_work_type_"]
 
 
+def fetch(req, tries=6):
+    """Open a request, retrying with backoff (10s, 20s, 40s...) on 429/5xx errors and network failures."""
+    for attempt in range(1, tries + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=180) as r:
+                return json.load(r)
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, ConnectionError) as e:
+            code = getattr(e, "code", None)
+            retryable = code is None or code == 429 or code >= 500
+            if not retryable or attempt == tries:
+                raise
+            wait = 10 * 2 ** (attempt - 1)
+            print(f"NYC Open Data request failed ({e}); retry {attempt}/{tries - 1} in {wait}s", file=sys.stderr)
+            time.sleep(wait)
+
+
 def get(dataset, **params):
     """Fetch every row for a query, paging 20,000 at a time."""
     out, offset = [], 0
@@ -28,8 +44,7 @@ def get(dataset, **params):
         req = urllib.request.Request(HOST + dataset + ".json?" + urllib.parse.urlencode(q))
         if os.environ.get("NYC_APP_TOKEN"):
             req.add_header("X-App-Token", os.environ["NYC_APP_TOKEN"])
-        with urllib.request.urlopen(req, timeout=180) as r:
-            page = json.load(r)
+        page = fetch(req)
         out += page
         if len(page) < 20000:
             return out

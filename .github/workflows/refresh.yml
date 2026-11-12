@@ -32,6 +32,8 @@ jobs:
         with:
           python-version: "3.12"
       - name: Pull NYC DOB filings
+        # If NYC Open Data is down, publish with the NYC data already in the repo.
+        continue-on-error: true
         env:
           NYC_APP_TOKEN: ${{ secrets.NYC_APP_TOKEN }}
         run: python3 pull_nyc.py
