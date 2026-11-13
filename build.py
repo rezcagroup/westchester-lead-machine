@@ -1,4 +1,5 @@
 """Assemble index.html (Westchester) and nyc.html (five boroughs) from src/ and data/. Run: python3 build.py"""
+import json, re
 from pathlib import Path
 R = Path(__file__).parent
 
@@ -8,8 +9,13 @@ def page(out, title, body, script, data):
     for key, f in data:
         src = R/"data"/f
         js = js.replace(key, (src.read_text() if src.exists() else "{}").replace("</", "<\\/"))
+    body_html = (R/"src"/body).read_text()
+    if "__TOWNS__" in body_html:  # Westchester header and source note: fill from the data, not typed-in numbers
+        towns = len({r[3] for r in json.loads((R/"data/data.json").read_text())})
+        pulled = re.search(r'const PULLED = "([^"]*)";', js).group(1)
+        body_html = body_html.replace("__TOWNS__", str(towns)).replace("__PULLED__", pulled)
     head = (R/"src/head.html").read_text().replace("Westchester Construction Lead Machine", title)
-    html = head + (R/"src/css.txt").read_text() + "\n</head>\n" + (R/"src"/body).read_text() + "<script>\n" + js + "</script>\n</body>\n</html>\n"
+    html = head + (R/"src/css.txt").read_text() + "\n</head>\n" + body_html + "<script>\n" + js + "</script>\n</body>\n</html>\n"
     (R/out).write_text(html)
     print("Built", out, len(html), "bytes")
 
