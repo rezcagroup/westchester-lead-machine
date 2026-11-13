@@ -1,4 +1,4 @@
-# Pulls fresh NYC DOB filings and Westchester County referrals every morning, rebuilds both pages
+# Pulls fresh NYC DOB filings and Westchester County referrals every morning (the schedule fires several times a day because GitHub delays cron runs), rebuilds both pages
 # and publishes them with GitHub Pages.
 # Needs: this file on the default branch, and Settings -> Pages -> Source set to "GitHub Actions".
 # Nothing is committed back to the repo; the refreshed pages only go to the published site.
@@ -6,7 +6,11 @@ name: Refresh and publish
 
 on:
   schedule:
-    - cron: "17 10 * * *"   # daily, about 5-6am New York time
+    # GitHub often runs scheduled jobs hours late, so ask three times a day. A run that lands
+    # after an earlier one just republishes the same pages with the latest data.
+    - cron: "43 8 * * *"    # about 3-4am New York time
+    - cron: "43 11 * * *"   # about 6-7am
+    - cron: "43 14 * * *"   # about 9-10am
   workflow_dispatch:
   push:
     branches: [main]
